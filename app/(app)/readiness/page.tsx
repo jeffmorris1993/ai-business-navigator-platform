@@ -5,6 +5,7 @@ import { initialReport } from "@/lib/readiness/initial";
 import { CAPABILITIES } from "@/lib/readiness/rules";
 import { liveAiAvailable } from "@/lib/ai/openai";
 import { samplesFor } from "@/lib/samples/catalog";
+import { presetFor } from "@/lib/samples/presets";
 import { PageHeader } from "@/components/app/status";
 import { ReadinessView } from "@/components/app/readiness-view";
 
@@ -36,6 +37,7 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
         answers={answers}
         liveAi={liveAiAvailable()}
         samples={{ sales: samplesFor(b.slug, "sales"), salesUpdate: samplesFor(b.slug, "salesUpdate"), invoices: samplesFor(b.slug, "invoices"), expenses: samplesFor(b.slug, "expenses") }}
+        weeks={{ examples: presetFor(b.slug)?.weeks ?? [], entered: weeks.map((w) => w.week_start), companyName: b.name }}
       />
     </>
   );

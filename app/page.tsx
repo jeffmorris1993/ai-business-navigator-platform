@@ -3,6 +3,7 @@ import { ArrowRight, Building2, ShieldCheck, Brain, Cpu, UserCheck } from "lucid
 import { listBusinesses } from "@/lib/db/repo";
 import { db } from "@/lib/db/client";
 import { SignInButton } from "@/components/app/signin-button";
+import { PresetGrid } from "@/components/app/preset-grid";
 import { liveAiAvailable, aiModel } from "@/lib/ai/openai";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +33,7 @@ export default async function Landing() {
                 <span className="flex items-center gap-2">Open the Metro Roofing demo <ArrowRight className="size-4" /></span>
               </SignInButton>
             )}
-            <Link href="/start" className="inline-flex h-10 items-center gap-2 rounded-md border border-line-strong bg-surface px-4 text-sm font-medium text-ink shadow-card hover:bg-subtle">Set up a new business</Link>
+            <Link href="/start" className="inline-flex h-10 items-center gap-2 rounded-md border border-line-strong bg-surface px-4 text-sm font-medium text-ink shadow-card hover:bg-subtle">Onboard an example company</Link>
           </div>
         </div>
         <div className="rounded-lg border border-line bg-surface p-5 shadow-card">
@@ -53,21 +54,16 @@ export default async function Landing() {
       </section>
 
       <section className="border-t border-line bg-[#fbfbfa]">
-        <div className="mx-auto grid max-w-6xl gap-10 px-6 py-12 lg:grid-cols-[2fr_1fr]">
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[2fr_1fr]">
           <div>
-            <h2 className="text-[13px] font-semibold uppercase tracking-[0.06em] text-ink-3">Sample businesses</h2>
-            <p className="mt-0.5 text-[13px] text-ink-3">Fictional businesses with fictional records. Everything is calculated live from their data.</p>
-            <div className="mt-4 grid gap-px overflow-hidden rounded-lg border border-line bg-line shadow-card sm:grid-cols-2">
-              {businesses.map((b) => (
-                <SignInButton key={b.id} businessId={b.id} className="group flex items-center gap-3 bg-surface px-4 py-3.5 text-left hover:bg-subtle/60">
-                  <span className="flex w-full items-center gap-3">
-                    <span className="grid size-8 place-items-center rounded-md bg-subtle text-[13px] font-semibold text-ink-2 ring-1 ring-line">{b.name.slice(0, 1)}</span>
-                    <span className="min-w-0 flex-1"><span className="block text-[13.5px] font-medium">{b.name}</span><span className="block truncate text-xs text-ink-3">{b.industry ?? "Starts at onboarding"} · {b.data_path === "manual" ? "Paper records" : "Spreadsheets"}</span></span>
-                    <ArrowRight className="size-4 text-ink-4 transition group-hover:translate-x-0.5 group-hover:text-ink-2" />
-                  </span>
-                </SignInButton>
-              ))}
+            <div className="mb-4 flex items-end justify-between gap-3">
+              <div>
+                <h2 className="text-[13px] font-semibold uppercase tracking-[0.06em] text-ink-3">Example companies</h2>
+                <p className="mt-0.5 text-[13px] text-ink-3">Onboard any of them from scratch, or open one with its records already loaded. All fictional.</p>
+              </div>
+              <Link href="/start" className="shrink-0 text-[13px] font-medium text-cobalt hover:underline">All details →</Link>
             </div>
+            <PresetGrid compact />
             <div className="mt-3 text-[12.5px] text-ink-3">Prefer the original readiness walkthrough? <Link href="/demo" className="text-cobalt hover:underline">Start Metro Roofing from scratch</Link>.</div>
           </div>
           <div>

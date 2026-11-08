@@ -40,6 +40,7 @@ export function ReadinessView(p: Omit<FixProps, "fix" | "onClose"> & {
   const newly = ready.filter((c) => !p.report?.readyAtStart.includes(c.capability));
   const label = (k: string) => p.capabilities.find((c) => c.key === k)?.label ?? k;
   const mightHelp = new Set(p.initialAlways.mightHelp.map((m) => m.capability));
+  const firstUpload: CapabilityKey = p.samples.sales.length || !(p.samples.invoices.length || p.samples.expenses.length) ? (p.initial?.next.includes("invoices or expenses") ? "overdue_invoices" : "sales_pipeline") : p.samples.invoices.length ? "overdue_invoices" : "expense_trends";
   const GROUPS = [
     { title: "Ready to use", hint: "verified from your records", statuses: ["ready"] },
     { title: "One step away", hint: "some analysis works; one fix unlocks the rest", statuses: ["partial"] },
@@ -49,7 +50,7 @@ export function ReadinessView(p: Omit<FixProps, "fix" | "onClose"> & {
 
   return (
     <div className="space-y-6">
-      {p.initial && <InitialCard r={p.initial} name={p.businessName} onUpload={() => setFix(current.find((c) => c.capability === "sales_pipeline") ?? null)} manualHref="/data#weekly" />}
+      {p.initial && <InitialCard r={p.initial} name={p.businessName} onUpload={() => setFix(current.find((c) => c.capability === firstUpload) ?? null)} manualHref="/data#weekly" />}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="p-5 md:col-span-2">
@@ -202,7 +203,7 @@ export function ReadinessView(p: Omit<FixProps, "fix" | "onClose"> & {
         <CardContent><AgentChat agent="readiness" liveAi={p.liveAi} suggestions={["What can AI help me with?", "What's preventing me from using Financial Intelligence?", "Help me fix my spreadsheet.", "Give me a setup plan for this week."]} /></CardContent>
       </Card>
 
-      {fix && <FixDialog fix={fix} onClose={() => setFix(null)} openMissing={p.openMissing} unknownStatuses={p.unknownStatuses} answers={p.answers} samples={p.samples} />}
+      {fix && <FixDialog fix={fix} onClose={() => setFix(null)} openMissing={p.openMissing} unknownStatuses={p.unknownStatuses} answers={p.answers} samples={p.samples} weeks={p.weeks} />}
     </div>
   );
 }

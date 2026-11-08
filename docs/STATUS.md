@@ -1,10 +1,14 @@
 # Status: completed features and limitations
 
 Verified on 2026-11-08 against the hosted Supabase project with live OpenAI (`gpt-5.4-mini`):
-- `npm test` — 55 unit tests (calculations, readiness rules, importer, agent loop, finding verification/de-duplication).
+- `npm test` — 62 unit tests (calculations, readiness rules, importer, agent loop, finding verification/de-duplication).
 - `e2e/intelligence-flow.ts` — proactive engine acceptance tests (below).
 - `e2e/demo-flow.ts` — original readiness walkthrough in a browser.
 - `e2e/acceptance.ts` — original acceptance tests (importer, salon, approvals, cash refusal, sponsor privacy, no-key mode).
+
+## Example-company onboarding
+- 9 fictional presets (6 spreadsheet, 3 manual) in `lib/samples/presets.ts`; each can be onboarded from scratch or opened with data (`/start`).
+- `e2e/presets-flow.ts`: Summit onboarded from scratch → job quotes uploaded → "On Hold" clarified → import auto-scan saved findings; Iron & Oak onboarded → 2 example weeks entered by hand → capacity Ready → scan saved a capacity finding with no invented customers; Riverside opened with data; mobile menu opens full-height above the app.
 
 ## Proactive Intelligence Engine — acceptance tests
 

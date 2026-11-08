@@ -21,6 +21,11 @@ function def<S extends z.ZodTypeAny>(t: ToolDef<S>): ToolDef<S> {
   return t;
 }
 
+/** During a scan, remind the specialist how to save a meaningful result (it still decides whether it's worth recording). */
+function scanHint(ctx: ToolContext, category: string, refsNote: string) {
+  return ctx.inScan ? `If this is meaningful for the owner, save it with record_finding (category "${category}", ${refsNote}) and then prepare work for it.` : undefined;
+}
+
 /** Readiness gate: analysis tools refuse when the deterministic rules say the data isn't there. */
 async function gate(ctx: ToolContext, cap: CapabilityKey) {
   const input = await loadReadinessInput(ctx.businessId);
@@ -75,7 +80,7 @@ export const TOOLS: ToolDef[] = [
     agents: [...ALL],
     async run(ctx, { capability }) {
       const i = await loadReadinessInput(ctx.businessId);
-      const results = capability ? [RULES[capability](i)] : assessAll(i);
+      const results = (capability ? [RULES[capability](i)] : assessAll(i)).map((r) => ({ ...r, specialist: CAPABILITIES.find((c) => c.key === r.capability)!.agent }));
       const ready = results.filter((r) => r.status === "ready").length;
       return { summary: capability ? `Checked ${CAPABILITIES.find((c) => c.key === capability)!.label}: ${results[0].status.replace("_", " ")}` : `Checked ${results.length} capabilities: ${ready} ready`, data: results, links: [{ label: "My AI Readiness", href: "/readiness" }] };
     },
@@ -152,7 +157,7 @@ export const TOOLS: ToolDef[] = [
       const r = findStaleOpportunities(g.input.opps, demoToday(), days);
       return {
         summary: `Reviewed ${r.openReviewed} open estimates; ${r.stale.length} have no contact in over ${days} days (${formatMoney(r.totalValue)} potential pipeline value)`,
-        data: { ...r, stale: r.stale.slice(0, 25), note: "Total is potential pipeline value, not guaranteed revenue." },
+        data: { ...r, stale: r.stale.slice(0, 25), note: "Total is potential pipeline value, not guaranteed revenue.", next_step: r.stale.length ? scanHint(ctx, "stale_opportunities", "record_refs = the stale estimate ids, grouped in one finding") : undefined },
         links: [{ label: "Review in Sales Intelligence", href: "/sales" }],
       };
     },
@@ -190,7 +195,7 @@ export const TOOLS: ToolDef[] = [
       const g = await gate(ctx, "appointment_capacity");
       if (!g.allowed) return blocked("appointment_capacity", g.result);
       const r = analyzeAppointmentCapacity(g.input.weeks);
-      return { summary: `Analyzed ${r.weeks} weeks: ${r.totalUnusedSlots} unused or cancelled slots${r.estimatedUnusedValue != null ? ` (~${formatMoney(r.estimatedUnusedValue)} at your average service value)` : ""}`, data: r, links: [{ label: "Sales Intelligence", href: "/sales" }] };
+      return { summary: `Analyzed ${r.weeks} weeks: ${r.totalUnusedSlots} unused or cancelled slots${r.estimatedUnusedValue != null ? ` (~${formatMoney(r.estimatedUnusedValue)} at your average service value)` : ""}`, data: { ...r, next_step: scanHint(ctx, "capacity_opportunity", "no record_refs; software computes the value") }, links: [{ label: "Sales Intelligence", href: "/sales" }] };
     },
   }),
   def({
@@ -225,7 +230,7 @@ export const TOOLS: ToolDef[] = [
       const g = await gate(ctx, "overdue_invoices");
       if (!g.allowed) return blocked("overdue_invoices", g.result);
       const r = findOverdueInvoices(g.input.invoices, demoToday());
-      return { summary: `Checked ${g.input.invoices.length} invoices; ${r.count} overdue totaling ${formatMoney(r.total, { cents: true })}`, data: r, links: [{ label: "Review in Financial Intelligence", href: "/finance" }] };
+      return { summary: `Checked ${g.input.invoices.length} invoices; ${r.count} overdue totaling ${formatMoney(r.total, { cents: true })}`, data: { ...r, next_step: r.count ? scanHint(ctx, "overdue_invoices", "record_refs = the overdue invoice ids, grouped in one finding") : undefined }, links: [{ label: "Review in Financial Intelligence", href: "/finance" }] };
     },
   }),
   def({
@@ -237,7 +242,7 @@ export const TOOLS: ToolDef[] = [
       const g = await gate(ctx, "expense_trends");
       if (!g.allowed) return blocked("expense_trends", g.result);
       const r = analyzeExpenses(g.input.expenses, demoToday(), window_months);
-      return { summary: r.sufficient ? `Compared expenses ${r.priorPeriod} vs ${r.recentPeriod}: ${r.totalChangePct}% change; biggest increase in ${r.categories[0]?.category}` : r.reason, data: r, links: [{ label: "Financial Intelligence", href: "/finance" }] };
+      return { summary: r.sufficient ? `Compared expenses ${r.priorPeriod} vs ${r.recentPeriod}: ${r.totalChangePct}% change; biggest increase in ${r.categories[0]?.category}` : r.reason, data: { ...r, next_step: r.sufficient ? scanHint(ctx, "expense_increase", "subject = the category name") : undefined }, links: [{ label: "Financial Intelligence", href: "/finance" }] };
     },
   }),
   def({
@@ -395,7 +400,8 @@ export const TOOLS: ToolDef[] = [
       const existing = draftTool ? (await db().from("drafts").select("id", { count: "exact", head: true }).eq("business_id", ctx.businessId).eq("finding_id", r.id)).count ?? 0 : 0;
       const next_step = draftTool && existing === 0 && ctx.inScan
         ? `Prepare work for this finding: call ${draftTool} with finding_id="${r.id}" for the single most important ${def.refType === "invoice" ? "invoice" : "estimate"} in it (you choose which), and create_task with finding_id if the owner needs to act beyond a message.`
-        : existing > 0 ? "A draft already exists for this finding; don't duplicate it." : undefined;
+        : existing > 0 ? "A draft already exists for this finding; don't duplicate it."
+        : ctx.inScan && i.category !== "readiness_gap" ? `Prepare work for this finding: create_task with finding_id="${r.id}" describing the owner's most useful next action (one task, specific to the evidence).` : undefined;
       return { summary: `${r.outcome === "created" ? "Recorded new" : "Updated existing"} finding: ${i.title}`, data: { finding_id: r.id, outcome: r.outcome, software_computed_value: r.value, value_kind: r.value_kind, records: r.qualifyingRefs, next_step }, links: [{ label: "Intelligence Inbox", href: `/inbox?f=${r.id}` }] };
     },
   }),

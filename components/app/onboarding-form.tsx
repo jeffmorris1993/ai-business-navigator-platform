@@ -7,15 +7,10 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { api } from "@/lib/client";
 import type { ProfileAnswers } from "@/lib/types";
 
-const METRO = {
-  name: "Metro Roofing", industry: "Roofing and construction", sales_tracking: "Excel spreadsheets", invoicing: "QuickBooks",
-  biggest_challenge: "Following up with customers", ai_experience: "Beginner", main_goal: "Increase sales without hiring another administrator",
-  answers: { lead_sources: "Phone calls and website form", estimate_process: "Owner measures the roof and writes the bid in Excel", followup_tracking: "Memory and sticky notes", manual_tasks: "Calling back homeowners, chasing invoices", records_maintainer: "Owner", reviewer: "Owner", update_frequency: "Weekly", staff_tool_comfort: "medium", customer_permission: "yes", human_approval: "yes", financial_access: "Owner and bookkeeper" } as ProfileAnswers,
-};
+type Form = { name: string; industry: string; sales_tracking: string; invoicing: string; biggest_challenge: string; ai_experience: string; main_goal: string; answers: ProfileAnswers };
+export interface OnboardingPreset { name: string; problem: string; records: "spreadsheet" | "manual"; steps: string[]; profile: Omit<Form, "name" | "answers">; answers: ProfileAnswers }
 
-type Form = typeof METRO;
-
-export function OnboardingForm({ initial, isMetro }: { initial: Form; isMetro: boolean }) {
+export function OnboardingForm({ initial, preset }: { initial: Form; preset: OnboardingPreset | null }) {
   const [f, setF] = useState<Form>(initial);
   const [step, setStep] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -46,10 +41,15 @@ export function OnboardingForm({ initial, isMetro }: { initial: Form; isMetro: b
           <>
             <h1 className="text-2xl font-semibold tracking-tight">Tell us about your business</h1>
             <p className="mt-1 text-sm text-slate-500">A few simple questions. No technical knowledge needed.</p>
-            {isMetro && (
-              <button type="button" onClick={() => setF(METRO)} className="mt-4 flex w-full items-center gap-2 rounded-lg border border-dashed border-brand-300 bg-brand-50 px-4 py-2.5 text-sm font-medium text-brand-700 hover:bg-brand-100">
-                <Wand2 className="size-4" /> Use Metro Roofing&apos;s answers (demo)
-              </button>
+            {preset && (
+              <div className="mt-4 rounded-lg border border-cobalt/25 bg-cobalt-50/50 p-4">
+                <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-cobalt-700">Example company · {preset.records === "manual" ? "paper records" : "spreadsheets"}</div>
+                <p className="mt-1 text-[13px] text-ink-2">{preset.problem}</p>
+                <ol className="mt-2 list-decimal space-y-0.5 pl-4 text-[12.5px] text-ink-3">{preset.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+                <button type="button" onClick={() => setF({ name: preset.name, ...preset.profile, answers: preset.answers })} className="mt-3 inline-flex items-center gap-2 rounded-md bg-cobalt px-3 py-1.5 text-[13px] font-medium text-white hover:bg-cobalt-700">
+                  <Wand2 className="size-3.5" /> Use {preset.name}&apos;s answers
+                </button>
+              </div>
             )}
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <Field label="Business name"><Input value={f.name} onChange={(e) => set("name", e.target.value)} /></Field>
@@ -57,20 +57,20 @@ export function OnboardingForm({ initial, isMetro }: { initial: Form; isMetro: b
               <Field label="How do you keep track of sales?">
                 <Select value={f.sales_tracking} onChange={(e) => set("sales_tracking", e.target.value)}>
                   <option value="">Choose one</option>
-                  {["Excel spreadsheets", "Google Sheets", "CRM software", "Point-of-sale system", "Paper appointment book", "Paper notebook", "Not tracked"].map((o) => <option key={o}>{o}</option>)}
+                  {withValue(["Excel spreadsheets", "Google Sheets", "CRM software", "Point-of-sale system", "Shop management software", "Paper appointment book", "Paper sign-in sheets", "Paper notebook", "Not tracked"], f.sales_tracking).map((o) => <option key={o}>{o}</option>)}
                 </Select>
               </Field>
               <Field label="How do you send invoices?">
                 <Select value={f.invoicing} onChange={(e) => set("invoicing", e.target.value)}>
                   <option value="">Choose one</option>
-                  {["QuickBooks", "FreshBooks", "Xero", "Excel or Word", "Paper", "I don't send invoices"].map((o) => <option key={o}>{o}</option>)}
+                  {withValue(["QuickBooks", "FreshBooks", "Xero", "Shop management software", "Excel or Word", "Paper", "I don't send invoices"], f.invoicing).map((o) => <option key={o}>{o}</option>)}
                 </Select>
               </Field>
               <Field label="Biggest challenge"><Input value={f.biggest_challenge} onChange={(e) => set("biggest_challenge", e.target.value)} placeholder="e.g. Following up with customers" /></Field>
               <Field label="Experience with AI">
                 <Select value={f.ai_experience} onChange={(e) => set("ai_experience", e.target.value)}>
                   <option value="">Choose one</option>
-                  {["Beginner", "Some experience", "Use AI tools regularly"].map((o) => <option key={o}>{o}</option>)}
+                  {withValue(["Beginner", "Some experience", "Use AI tools regularly"], f.ai_experience).map((o) => <option key={o}>{o}</option>)}
                 </Select>
               </Field>
               <div className="sm:col-span-2"><Field label="Main goal"><Input value={f.main_goal} onChange={(e) => set("main_goal", e.target.value)} placeholder="e.g. Increase sales without hiring another administrator" /></Field></div>
@@ -114,6 +114,10 @@ export function OnboardingForm({ initial, isMetro }: { initial: Form; isMetro: b
       </div>
     </div>
   );
+}
+
+function withValue(options: string[], value: string) {
+  return value && !options.includes(value) ? [...options, value] : options;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

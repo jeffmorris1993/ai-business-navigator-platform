@@ -3,6 +3,7 @@ import * as repo from "@/lib/db/repo";
 import { db } from "@/lib/db/client";
 import { RECORD_TYPES, type RecordType } from "@/lib/import/schemas";
 import { ALL_SAMPLES, SAMPLE_FILES } from "@/lib/samples/catalog";
+import { presetFor } from "@/lib/samples/presets";
 import { formatMoney } from "@/lib/calc/money";
 import { PageHeader } from "@/components/app/status";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -21,7 +22,7 @@ export default async function DataPage() {
     db().from("column_mappings").select("record_type,mapping,confirmed_at,suggested_by").eq("business_id", businessId).order("confirmed_at", { ascending: false }),
     repo.latestCash(businessId),
   ]);
-  const own = Object.values(SAMPLE_FILES[b.slug ?? ""] ?? {}).flat();
+  const own = Object.values(SAMPLE_FILES[b.slug ?? ""] ?? {}).flat() as Array<{ file: string; label: string }>;
   return (
     <>
       <PageHeader title="Data & Connections" description="Everything the agents are allowed to look at: files you've uploaded, numbers you've entered, and your answers. Original files are stored privately and every record links back to its source row." />
@@ -52,7 +53,7 @@ export default async function DataPage() {
           <Card id="weekly">
             <CardHeader><CardTitle>Weekly numbers (no spreadsheet needed)</CardTitle><CardDescription>For businesses that keep paper records. Copy a few totals each week; they&apos;re saved over time.</CardDescription></CardHeader>
             <CardContent className="space-y-5">
-              <WeeklyForm />
+              <WeeklyForm examples={presetFor(b.slug)?.weeks ?? []} entered={weeks.map((w) => w.week_start)} companyName={b.name} />
               {weeks.length > 0 && (
                 <table className="w-full text-sm">
                   <thead className="text-left text-xs uppercase text-slate-500"><tr><th className="py-1">Week of</th><th>Booked</th><th>Cancelled</th><th>Empty</th><th>Avg price</th><th>Sales</th></tr></thead>

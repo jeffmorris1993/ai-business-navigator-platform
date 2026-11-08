@@ -7,8 +7,17 @@ import { Input, Label } from "@/components/ui/input";
 import { api } from "@/lib/client";
 import type { Change } from "./change-list";
 
-export function WeeklyForm({ onDone }: { onDone?: (c: Change[]) => void }) {
+export interface ExampleWeekInput { week_start: string; available_slots: number; booked: number; cancellations: number; unfilled_slots: number; avg_service_value: number; weekly_sales: number }
+
+export function WeeklyForm({ onDone, examples = [], entered = [], companyName }: { onDone?: (c: Change[]) => void; examples?: ExampleWeekInput[]; entered?: string[]; companyName?: string }) {
   const [f, setF] = useState({ week_start: "2026-11-02", available_slots: "", booked: "", cancellations: "", unfilled_slots: "", avg_service_value: "", weekly_sales: "" });
+  const [savedHere, setSavedHere] = useState<string[]>([]);
+  const remaining = examples.filter((w) => !entered.includes(w.week_start) && !savedHere.includes(w.week_start));
+  const fillExample = () => {
+    const w = remaining[0];
+    if (!w) return;
+    setF({ week_start: w.week_start, available_slots: String(w.available_slots), booked: String(w.booked), cancellations: String(w.cancellations), unfilled_slots: String(w.unfilled_slots), avg_service_value: String(w.avg_service_value), weekly_sales: String(w.weekly_sales) });
+  };
   const [busy, setBusy] = useState(false);
   const router = useRouter();
   const fields: Array<[keyof typeof f, string, string]> = [
@@ -23,6 +32,8 @@ export function WeeklyForm({ onDone }: { onDone?: (c: Change[]) => void }) {
         setBusy(true);
         try {
           const r = await api<{ changes: Change[] }>("/api/records/week", f);
+          setSavedHere((x) => [...x, f.week_start]);
+          setF((x) => ({ ...x, available_slots: "", booked: "", cancellations: "", unfilled_slots: "", avg_service_value: "", weekly_sales: "" }));
           onDone?.(r.changes);
           router.refresh();
         } finally {
@@ -30,6 +41,12 @@ export function WeeklyForm({ onDone }: { onDone?: (c: Change[]) => void }) {
         }
       }}
     >
+      {examples.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-md border border-dashed border-line-strong bg-subtle/50 px-3 py-2.5 text-[12.5px] text-ink-2 sm:flex-row sm:items-center">
+          <span className="flex-1">{remaining.length ? `${companyName ?? "This business"} keeps paper records. Fill the form from their book, ${remaining.length} example week${remaining.length === 1 ? "" : "s"} left, then click Save.` : `All of ${companyName ?? "this business"}'s example weeks are entered.`}</span>
+          {remaining.length > 0 && <Button type="button" size="sm" variant="secondary" onClick={fillExample}>Fill week of {remaining[0].week_start}</Button>}
+        </div>
+      )}
       <div className="grid gap-3 sm:grid-cols-2">
         {fields.map(([k, label, type]) => (
           <div key={k} className="space-y-1.5"><Label>{label}</Label><Input type={type} min={0} step="any" value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} required={k === "week_start"} /></div>

@@ -23,14 +23,23 @@ All businesses, sponsors and records in this repository are **fictional sample d
 | **Sponsor Dashboard** | Aggregate enrollment, readiness, activation, adoption, action completion; counts only; multi-sponsor | `lib/services/sponsor.ts`, view `sponsor_business_progress` |
 | **Demo Mode** | Reset, run scan, show activity, review findings/actions, apply a sample change (payment / contact), follow-up scan, 7-scene presentation guide | header control on sample businesses; `app/api/demo/*` |
 
-### The demo businesses (fictional)
+### Example companies (fictional)
 
-- **Metro Roofing** – primary demo. Baseline has 40 estimates (with contact dates), 12 invoices (5 overdue, $31,700) and 6 months of expenses (roofing materials up ~28%), no cash on hand (a real readiness gap). The agents discover the issues themselves. "Start from scratch" restores the original onboarding walkthrough (upload → missing contact dates → fix).
-- **BrightPath Consulting** – different column names (Organization, Proposal Fee, Submitted, Last Email, Stage), ambiguous "Closed" stage, 6 overdue invoices totaling **$9,200**.
-- **FreshStart Cleaning** – invoices with Total Amount vs Amount Due, payments, expenses, cash on hand → cash scenarios.
-- **The Beauty Lounge** – paper appointment book, weekly numbers only → unused capacity.
-- **Neighborhood Kitchen** – six months of expenses with rising food costs.
-- 27 additional **simulated cohort** businesses (flagged `is_cohort_sim`, no records) so the sponsor charts show program scale. The dashboard labels them and can exclude them.
+Nine example companies, each with its own records and problems, defined once in `lib/samples/presets.ts` (used by both the seed and onboarding). From **/start** (or the landing page) every company can be **onboarded from scratch** (preset answers, then upload its files or type in its paper-record totals) or **opened with data loaded**.
+
+| Company | Industry | Records | Built-in problem |
+|---|---|---|---|
+| Metro Roofing | Roofing | Spreadsheets | Estimates without contact dates at first, stale follow-ups, overdue invoices, rising materials |
+| BrightPath Consulting | Professional services | Spreadsheets | Unusual column names, ambiguous "Closed" stage, overdue invoices |
+| FreshStart Cleaning | Commercial cleaning | Spreadsheets | Late payers, Total vs Amount Due, payments, rising supplies |
+| Neighborhood Kitchen | Restaurant | Spreadsheets | Rising food costs |
+| Summit Heating & Air | HVAC | Spreadsheets | Cold quotes, "On Hold" status to clarify, overdue invoices |
+| Riverside Auto Care | Auto repair | Spreadsheets | Fleet accounts paying late, rising parts costs, bank-export headers |
+| The Beauty Lounge | Salon | Paper → manual entry | Empty and cancelled slots |
+| Iron & Oak Fitness | Fitness studio | Paper → manual entry | Rising no-shows, unfilled classes |
+| Paws & Claws Grooming | Pet grooming | Paper → manual entry | Last-minute cancellations |
+
+Manual companies get a "Fill week from paper records" helper on the weekly entry form; the owner still saves each week. 27 additional **simulated cohort** businesses (no records) give the sponsor charts scale and are labeled.
 
 Sample files are downloadable from **Data & Connections** and live in `public/samples/`.
 
@@ -81,7 +90,7 @@ Open http://localhost:3000, choose **Open the Metro Roofing demo**, then use **D
 npm test
 ```
 
-55 unit tests cover dates/money parsing, the $62,000 / 11-estimate case, $9,200 and $31,700 overdue totals (balance, not total), payments reducing balances, expense trends, cash-forecast refusal, every readiness rule including before/after transitions and stale data, roofing vs consulting header normalization, ambiguous status handling, Total≠Amount Due, and the agent loop (tool choice, permissions, approvals, invalid args, tool errors, iteration cap, memory) using a scripted fake model.
+62 unit tests cover dates/money parsing, the $62,000 / 11-estimate case, $9,200 and $31,700 overdue totals (balance, not total), payments reducing balances, expense trends, cash-forecast refusal, every readiness rule including before/after transitions and stale data, roofing vs consulting header normalization, ambiguous status handling, Total≠Amount Due, and the agent loop (tool choice, permissions, approvals, invalid args, tool errors, iteration cap, memory) using a scripted fake model.
 
 End-to-end checks against a running, seeded server (uses Playwright):
 
@@ -97,7 +106,11 @@ BASE_URL=http://localhost:3000 NO_KEY_URL=http://localhost:3002 npx tsx e2e/acce
 BASE_URL=http://localhost:3000 NO_KEY_URL=http://localhost:3002 npx tsx e2e/intelligence-flow.ts
 ```
 
-`intelligence-flow.ts` covers the proactive engine (scan, persistence, prepared work, no duplicates, payment → re-verification → follow-up scan, import trigger, readiness gating, reset, honest no-key mode). `demo-flow.ts` clicks through the original readiness walkthrough. `acceptance.ts` covers acceptance tests 2–9 (start a second server with `OPENAI_API_KEY=` on port 3002 for test 9).
+```bash
+BASE_URL=http://localhost:3000 npx tsx e2e/presets-flow.ts
+```
+
+`presets-flow.ts` onboards Summit (spreadsheets) and Iron & Oak (manual) from scratch and checks the mobile menu. `intelligence-flow.ts` covers the proactive engine (scan, persistence, prepared work, no duplicates, payment → re-verification → follow-up scan, import trigger, readiness gating, reset, honest no-key mode). `demo-flow.ts` clicks through the original readiness walkthrough. `acceptance.ts` covers acceptance tests 2–9 (start a second server with `OPENAI_API_KEY=` on port 3002 for test 9).
 
 ## Architecture
 

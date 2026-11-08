@@ -37,6 +37,12 @@ async function main() {
   csv("freshstart-expenses.csv", S.freshstartExpenses());
   csv("neighborhood-kitchen-expenses.csv", S.kitchenExpenses());
   csv("beauty-lounge-weekly-numbers.csv", S.beautyLoungeWeeks());
+  csv("summit-hvac-jobs.csv", S.summitJobs());
+  csv("summit-hvac-invoices.csv", S.summitInvoices());
+  csv("riverside-auto-repair-orders.csv", S.riversideInvoices());
+  csv("riverside-auto-expenses.csv", S.riversideExpenses());
+  csv("iron-oak-fitness-weekly-numbers.csv", S.ironOakWeeks());
+  csv("paws-claws-grooming-weekly-numbers.csv", S.pawsWeeks());
   writeFileSync(`${out}/README.txt`, `${S.SAMPLE_NOTICE}\nAll names, businesses and amounts are invented. Reference date: 2026-11-08.\n`);
   console.log("Sample files written to", out);
 }

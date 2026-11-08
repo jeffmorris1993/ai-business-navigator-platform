@@ -35,7 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         }
       />
-      <header className="sticky top-0 z-20 flex h-12 items-center gap-2 border-b border-line bg-canvas/90 px-3 backdrop-blur sm:px-6">
+      <header className="sticky top-0 z-20 flex h-12 items-center gap-2 border-b border-line bg-canvas px-3 sm:px-6">
         <MobileNav counts={counts} />
         <SwitchBusiness current={{ id: business.id, name: business.name, industry: business.industry }} businesses={businesses.map((b) => ({ id: b.id, name: b.name, industry: b.industry }))} />
         <div className="ml-auto flex items-center gap-1.5 sm:gap-3">

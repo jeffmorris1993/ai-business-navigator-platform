@@ -29,5 +29,8 @@ Open the app, choose **Open the Metro Roofing demo**, then use **Demo Mode** (to
 ## Scene 7 — Sponsor impact
 - **Sponsor Dashboard** → sign in as the fictional Northstar program. Show adoption, readiness, and the **AI work and outcomes** strip: AI-prepared actions, owner-approved actions and software-verified outcomes are counted separately. No business names or records are visible.
 
+## Onboarding any example company
+Go to **/start** (or "Onboard an example company" on the landing page). Pick one of nine fictional companies, then **Onboard from scratch**: click **Use {Company}'s answers**, create the readiness report, then add records — upload that company's files (offered as one-click options) or, for paper-records businesses (Beauty Lounge, Iron & Oak Fitness, Paws & Claws Grooming), use **Fill week from paper records** and save two or more weeks. Imports start an intelligence scan automatically; for manual companies run the scan from Overview. **Open with data** jumps straight to a fully loaded company.
+
 ## Alternate: readiness walkthrough
 From the landing page, **Start Metro Roofing from scratch** runs the original onboarding → upload → "missing contact dates" → fix story. Each import now automatically starts an intelligence scan of the affected area.

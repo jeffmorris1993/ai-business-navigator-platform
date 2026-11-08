@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Importer } from "./importer";
 import { ChangeList, type Change } from "./change-list";
-import { WeeklyForm, CashForm } from "./forms";
+import { WeeklyForm, CashForm, type ExampleWeekInput } from "./forms";
 import { api } from "@/lib/client";
 import { formatMoney } from "@/lib/calc/money";
 import type { CapabilityResult } from "@/lib/readiness/rules";
@@ -22,6 +22,7 @@ export interface FixProps {
   unknownStatuses: string[];
   answers: ProfileAnswers;
   samples: { sales: SampleFile[]; salesUpdate: SampleFile[]; invoices: SampleFile[]; expenses: SampleFile[] };
+  weeks?: { examples: ExampleWeekInput[]; entered: string[]; companyName: string };
 }
 
 const TITLES: Record<string, { title: string; guide: string }> = {
@@ -36,7 +37,7 @@ const TITLES: Record<string, { title: string; guide: string }> = {
   answer_privacy: { title: "Two quick privacy questions", guide: "Before I draft customer messages, please confirm you're allowed to contact these customers and that a person approves messages before they go out. These are your answers, not a legal review." },
 };
 
-export function FixDialog({ fix, onClose, openMissing, unknownStatuses, answers, samples }: FixProps) {
+export function FixDialog({ fix, onClose, openMissing, unknownStatuses, answers, samples, weeks }: FixProps) {
   const [changes, setChanges] = useState<Change[] | null>(null);
   const [summary] = useState<string | null>(null);
   // The importer shows its own result, readiness changes and the automatic intelligence scan, so stay on it.
@@ -78,7 +79,10 @@ export function FixDialog({ fix, onClose, openMissing, unknownStatuses, answers,
           ) : fix.fixAction === "enter_cash" ? (
             <CashForm onDone={done} />
           ) : fix.fixAction === "add_weekly_numbers" ? (
-            <WeeklyForm onDone={done} />
+            <div className="space-y-4">
+              {importChanges.length > 0 && <ChangeList changes={importChanges} />}
+              <WeeklyForm onDone={(c) => setImportChanges(c)} examples={weeks?.examples ?? []} entered={weeks?.entered ?? []} companyName={weeks?.companyName} />
+            </div>
           ) : fix.fixAction === "answer_privacy" ? (
             <PrivacyFix answers={answers} onDone={done} />
           ) : (

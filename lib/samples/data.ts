@@ -229,3 +229,108 @@ export function metroNewEstimates(): Row[] {
     { Homeowner: "Gloria Whitman", "Bid Amt": 8800, "Date Quoted": "10/23/2026", "Last Call": "10/26/2026", Result: "Waiting on HO" },
   ];
 }
+
+// ---------------- Summit Heating & Air (HVAC, spreadsheets) ----------------
+function mdY(d: string) {
+  const [y, m, day] = d.split("-").map(Number);
+  return `${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m - 1]} ${day}, ${y}`;
+}
+export function summitJobs(): Row[] {
+  const r: Array<[string, number, string, string, string]> = [
+    // customer, job value, quote sent, last touch, status
+    ["Hollis Family", 11800, "2026-09-29", "2026-10-06", "Open"], // furnace replacement, quiet
+    ["Greenbriar Apartments", 18400, "2026-10-02", "2026-10-12", "Open"],
+    ["D. Okonkwo", 7600, "2026-10-08", "2026-10-15", "Open"],
+    ["Marsh Creek Dental", 9200, "2026-10-14", "2026-10-21", "Open"],
+    ["P. Lindqvist", 5400, "2026-10-17", "2026-10-24", "Open"],
+    ["Ridgeview Church", 13900, "2026-10-27", "2026-11-04", "Open"],
+    ["T. Abernathy", 6100, "2026-10-30", "2026-11-05", "Open"],
+    ["Cobalt Coffee Roasters", 8300, "2026-11-02", "2026-11-06", "Open"],
+    ["S. Vasquez", 4700, "2026-11-03", "2026-11-07", "Open"],
+    ["Fairway Townhomes HOA", 22600, "2026-09-15", "2026-09-30", "On Hold"],
+    ["M. Castellano", 6900, "2026-10-05", "2026-10-09", "On Hold"],
+    ["Brookside Vet Clinic", 9800, "2026-08-11", "2026-08-20", "Booked"],
+    ["R. Whitaker", 7200, "2026-08-18", "2026-08-22", "Booked"],
+    ["Lakeshore Bakery", 6400, "2026-08-25", "2026-09-02", "Booked"],
+    ["J. Morales", 10900, "2026-09-01", "2026-09-05", "Booked"],
+    ["Northside Library", 15800, "2026-09-08", "2026-09-17", "Booked"],
+    ["K. Patel", 5600, "2026-09-14", "2026-09-18", "Booked"],
+    ["Elmwood Daycare", 8700, "2026-09-22", "2026-09-29", "Booked"],
+    ["L. Johansson", 6300, "2026-10-06", "2026-10-10", "Booked"],
+    ["Pinecrest Motel", 12400, "2026-10-13", "2026-10-20", "Booked"],
+    ["B. Thornton", 5900, "2026-08-14", "2026-08-21", "Declined"],
+    ["Harbor Fitness", 14200, "2026-09-03", "2026-09-12", "Declined"],
+    ["E. Nakamura", 4800, "2026-09-24", "2026-10-01", "Declined"],
+    ["Oakridge Pharmacy", 9100, "2026-10-09", "2026-10-16", "Declined"],
+  ];
+  return r.map(([c, v, q, t, s]) => ({ Customer: c, "Job Value": v, "Quote Sent": mdY(q), "Last Touch": mdY(t), Status: s }));
+}
+
+export function summitInvoices(): Row[] {
+  const r: Array<[string, string, string, string, number, number]> = [
+    ["S-2201", "Brookside Vet Clinic", "2026-08-28", "2026-09-12", 9800, 0],
+    ["S-2202", "R. Whitaker", "2026-09-02", "2026-09-17", 7200, 2200],
+    ["S-2203", "Lakeshore Bakery", "2026-09-10", "2026-09-25", 6400, 6400],
+    ["S-2204", "J. Morales", "2026-09-15", "2026-09-30", 10900, 0],
+    ["S-2205", "Northside Library", "2026-09-29", "2026-10-14", 15800, 7900],
+    ["S-2206", "K. Patel", "2026-10-01", "2026-10-16", 5600, 0],
+    ["S-2207", "Elmwood Daycare", "2026-10-09", "2026-10-24", 8700, 8700],
+    ["S-2208", "L. Johansson", "2026-10-20", "2026-11-04", 6300, 0],
+    ["S-2209", "Pinecrest Motel", "2026-10-28", "2026-11-12", 12400, 12400],
+    ["S-2210", "Brookside Vet Clinic", "2026-11-02", "2026-11-17", 1450, 1450],
+  ];
+  return r.map(([n, c, b, d, a, bal]) => ({ "Inv No": n, "Customer Name": c, Billed: b, "Due By": d, "Invoice Amt": a, Balance: bal }));
+}
+// Overdue at 2026-11-08: S-2202 2200, S-2203 6400, S-2205 7900, S-2207 8700 = 4 invoices, 25,200.
+export const SUMMIT_EXPECTED = { openJobs: 9, onHold: 2, overdueCount: 4, overdueTotal: 25200 };
+
+// ---------------- Riverside Auto Care (auto repair, spreadsheets) ----------------
+export function riversideInvoices(): Row[] {
+  const r: Array<[string, string, string, string, number, number]> = [
+    ["RO-5512", "Bayside Delivery Fleet", "2026-08-06", "2026-09-05", 4860, 4860],
+    ["RO-5530", "City Parks Department", "2026-08-19", "2026-09-18", 2390, 0],
+    ["RO-5547", "Bayside Delivery Fleet", "2026-09-03", "2026-10-03", 3720, 3720],
+    ["RO-5561", "Coastal Plumbing Vans", "2026-09-12", "2026-10-12", 2950, 1450],
+    ["RO-5578", "City Parks Department", "2026-09-24", "2026-10-24", 1880, 1880],
+    ["RO-5590", "Bayside Delivery Fleet", "2026-10-02", "2026-11-01", 5240, 5240],
+    ["RO-5604", "Coastal Plumbing Vans", "2026-10-15", "2026-11-14", 2210, 2210],
+    ["RO-5619", "Greenway Taxi Co.", "2026-10-22", "2026-11-21", 3480, 3480],
+    ["RO-5622", "Greenway Taxi Co.", "2026-09-08", "2026-10-08", 1960, 0],
+    ["RO-5633", "City Parks Department", "2026-11-03", "2026-12-03", 2740, 2740],
+  ];
+  return r.map(([n, c, d, due, t, b]) => ({ "RO Number": n, Account: c, "Closed Date": d, "Due Date": due, Total: t, "Open Balance": b }));
+}
+// Overdue at 2026-11-08: 5512 4860, 5547 3720, 5561 1450, 5578 1880, 5590 5240 = 5 invoices, 17,150 (Bayside 13,820).
+export const RIVERSIDE_EXPECTED = { overdueCount: 5, overdueTotal: 17150 };
+
+export function riversideExpenses(): Row[] {
+  const rows: Row[] = [];
+  const months = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"];
+  const parts = [9200, 9400, 9300, 10900, 11800, 12600];
+  months.forEach((m, i) => {
+    rows.push({ Posted: `${m}-05`, Payee: "NAPA Auto Parts", Account: "Parts & Supplies", Debit: Math.round(parts[i] * 0.6) });
+    rows.push({ Posted: `${m}-19`, Payee: "WorldPac", Account: "Parts & Supplies", Debit: Math.round(parts[i] * 0.4) });
+    rows.push({ Posted: `${m}-15`, Payee: "Payroll", Account: "Technician Payroll", Debit: 14800 + (i % 2) * 200 });
+    rows.push({ Posted: `${m}-01`, Payee: "Riverside Commons LLC", Account: "Rent", Debit: 4200 });
+    rows.push({ Posted: `${m}-24`, Payee: "Riverside Electric", Account: "Utilities", Debit: 980 + (i % 3) * 45 });
+    rows.push({ Posted: `${m}-10`, Payee: "ShopKey Software", Account: "Software", Debit: 310 });
+  });
+  return rows;
+}
+
+// ---------------- Manual (paper records) businesses: weekly totals ----------------
+export function ironOakWeeks() {
+  const booked = [176, 171, 166, 160, 152, 147];
+  const noShows = [14, 15, 16, 19, 21, 23];
+  return ["2026-09-28", "2026-10-05", "2026-10-12", "2026-10-19", "2026-10-26", "2026-11-02"].map((w, i) => ({
+    week_start: w, available_slots: 220, booked: booked[i], cancellations: noShows[i], unfilled_slots: 220 - booked[i], avg_service_value: 21, weekly_sales: (booked[i] - noShows[i]) * 21 + 1850,
+  }));
+}
+
+export function pawsWeeks() {
+  const booked = [58, 55, 60, 52, 54, 50];
+  const cancels = [5, 7, 4, 8, 6, 9];
+  return ["2026-09-28", "2026-10-05", "2026-10-12", "2026-10-19", "2026-10-26", "2026-11-02"].map((w, i) => ({
+    week_start: w, available_slots: 70, booked: booked[i], cancellations: cancels[i], unfilled_slots: 70 - booked[i], avg_service_value: 68, weekly_sales: (booked[i] - cancels[i]) * 68,
+  }));
+}

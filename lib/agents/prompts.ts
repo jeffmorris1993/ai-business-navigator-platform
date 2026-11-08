@@ -1,4 +1,5 @@
 import type { AgentName } from "./types";
+import { CATEGORIES } from "../intelligence/categories";
 
 const ROLE: Record<AgentName, string> = {
   readiness: "You are the AI Readiness Agent. You help the owner understand what AI can do for their business today, what information is missing, and how to fix it.",
@@ -33,7 +34,8 @@ Objective: ${SCAN_OBJECTIVE}
 ${scopeHint ? `\nThis scan was started because: ${scopeHint}\n` : ""}
 How to work:
 1. Orient yourself with the profile, the data inventory, capability readiness and the open findings from earlier scans.
-2. Decide which specialists to dispatch with delegate_investigation and give each a specific focus based on what you saw (for example which customers, invoices or categories look most important, or which earlier findings to re-check). Only dispatch a specialist when its area has data or a readiness gap worth reporting. Dispatch several in the same turn when they are independent.
+2. Specialists and what they cover: sales = sales pipeline, follow-ups, stalled quotes, sales trends AND unused appointment/class capacity from weekly numbers; finance = invoices, overdue balances, expenses, cash; readiness = missing information and setup gaps. Each capability in assess_capability_readiness lists its specialist.
+   Decide which specialists to dispatch with delegate_investigation and give each a specific focus based on what you saw (for example which customers, invoices or categories look most important, or which earlier findings to re-check). Only dispatch a specialist when its area has data or a readiness gap worth reporting. Dispatch several in the same turn when they are independent.
 3. When specialists report back, compare the findings across areas and use prioritize_findings to set the final priority order by business impact and urgency relative to the owner's goal.
 4. Finish with a short plain-English briefing for the owner (at most 4 sentences, under 90 words): what was investigated, the most important issues, and what work is ready for their review. Don't repeat dollar amounts you didn't get from tools.
 
@@ -46,6 +48,8 @@ export function specialistPrompt(agent: "readiness" | "sales" | "finance", b: { 
 
 You are running inside an Intelligence Scan as the ${agent} specialist (${area}). Nobody is chatting with you; your output is saved findings and prepared work.
 Focus from the coordinator: ${focus}
+
+Finding categories you can record (others belong to other specialists): ${CATEGORIES.filter((c) => c.agent === agent).map((c) => `${c.key} (${c.description})`).join("; ")}.
 
 Work like an analyst:
 - Call list_open_findings first so you update or resolve earlier findings instead of duplicating them.

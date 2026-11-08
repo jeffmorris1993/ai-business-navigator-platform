@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutGrid, Inbox, Gauge, TrendingUp, Wallet, ListChecks, Database, MessageSquareText, Building2, Activity, Menu, X } from "lucide-react";
@@ -81,19 +82,32 @@ export function Sidebar({ counts, footer }: { counts: { findings: number; action
 
 export function MobileNav({ counts }: { counts: { findings: number; actions: number } }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const path = usePathname();
+  useEffect(() => setMounted(true), []);
   useEffect(() => setOpen(false), [path]);
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
+  }, [open]);
+  // Rendered into <body> so no ancestor (sticky header, transforms, filters) can clip the full-screen sheet.
+  const sheet = open && mounted ? createPortal(
+    <div className="fixed inset-0 z-[60] bg-ink/30 lg:hidden" onClick={() => setOpen(false)} role="dialog" aria-modal="true" aria-label="Navigation">
+      <div className="h-full w-72 max-w-[85vw] overflow-y-auto bg-[#fbfbfa] px-3 py-4 shadow-pop animate-slide-in" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-6 flex items-center justify-between px-2"><Logo /><button onClick={() => setOpen(false)} aria-label="Close navigation" className="rounded p-1 text-ink-3 hover:bg-subtle"><X className="size-4" /></button></div>
+        <NavList counts={counts} onNavigate={() => setOpen(false)} />
+      </div>
+    </div>,
+    document.body,
+  ) : null;
   return (
     <>
       <button onClick={() => setOpen(true)} className="rounded-md p-1.5 text-ink-2 hover:bg-subtle lg:hidden" aria-label="Open navigation"><Menu className="size-5" /></button>
-      {open && (
-        <div className="fixed inset-0 z-50 bg-ink/30 lg:hidden" onClick={() => setOpen(false)}>
-          <div className="h-full w-72 bg-[#fbfbfa] px-3 py-4 shadow-pop animate-slide-in" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-6 flex items-center justify-between px-2"><Logo /><button onClick={() => setOpen(false)} aria-label="Close" className="rounded p-1 text-ink-3 hover:bg-subtle"><X className="size-4" /></button></div>
-            <NavList counts={counts} onNavigate={() => setOpen(false)} />
-          </div>
-        </div>
-      )}
+      {sheet}
     </>
   );
 }

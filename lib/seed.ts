@@ -2,6 +2,7 @@ import "server-only";
 import Papa from "papaparse";
 import { db, must } from "./db/client";
 import * as S from "./samples/data";
+import { PRESETS, presetFor, type PresetSlug } from "./samples/presets";
 import { heuristicMapping } from "./import/heuristics";
 import { importRowsDirect } from "./services/imports";
 import { runAssessment } from "./readiness/engine";
@@ -17,38 +18,10 @@ export const SPONSORS = [
   { slug: "harborline", name: "Harborline Community Bank (fictional)", program_name: "Main Street AI Initiative", accent_color: "#0f766e" },
 ];
 
-type SampleSlug = "metro-roofing" | "brightpath-consulting" | "freshstart-cleaning" | "beauty-lounge" | "neighborhood-kitchen";
+type SampleSlug = PresetSlug;
 
-const BUSINESSES: Record<SampleSlug, Record<string, unknown>> = {
-  "metro-roofing": {
-    name: "Metro Roofing", industry: "Roofing and construction", sales_tracking: "Excel spreadsheets", invoicing: "QuickBooks",
-    biggest_challenge: "Following up with customers", ai_experience: "Beginner", main_goal: "Increase sales without hiring another administrator", data_path: "spreadsheet", onboarded: true,
-  },
-  "brightpath-consulting": {
-    name: "BrightPath Consulting", industry: "Professional services consulting", sales_tracking: "Google Sheets", invoicing: "FreshBooks",
-    biggest_challenge: "Proposals go quiet after we send them", ai_experience: "Some experience", main_goal: "Close more proposals and get paid faster", data_path: "spreadsheet", onboarded: true,
-  },
-  "freshstart-cleaning": {
-    name: "FreshStart Cleaning", industry: "Commercial cleaning", sales_tracking: "Word of mouth, no tracking", invoicing: "QuickBooks",
-    biggest_challenge: "Clients paying late", ai_experience: "Beginner", main_goal: "Improve cash flow", data_path: "spreadsheet", onboarded: true,
-  },
-  "beauty-lounge": {
-    name: "The Beauty Lounge", industry: "Salon", sales_tracking: "Paper appointment book", invoicing: "Card reader, no invoices",
-    biggest_challenge: "Empty chairs on weekdays", ai_experience: "Beginner", main_goal: "Fill more appointment slots", data_path: "manual", onboarded: true,
-  },
-  "neighborhood-kitchen": {
-    name: "Neighborhood Kitchen", industry: "Restaurant", sales_tracking: "POS system", invoicing: "Not applicable",
-    biggest_challenge: "Food costs keep going up", ai_experience: "Beginner", main_goal: "Protect profit margins", data_path: "spreadsheet", onboarded: true,
-  },
-};
-
-const ANSWERS: Partial<Record<SampleSlug, Record<string, unknown>>> = {
-  "metro-roofing": { lead_sources: "Phone calls and website form", estimate_process: "Owner measures the roof and writes the bid in Excel", followup_tracking: "Last Call column in the estimates sheet", manual_tasks: "Calling back homeowners, chasing invoices", records_maintainer: "Owner", reviewer: "Owner", update_frequency: "Weekly", staff_tool_comfort: "medium", customer_permission: "yes", human_approval: "yes", financial_access: "Owner and bookkeeper", systems: ["spreadsheets", "accounting", "email"] },
-  "brightpath-consulting": { lead_sources: "Referrals and LinkedIn", followup_tracking: "Last Email column in the proposal sheet", records_maintainer: "Office manager", reviewer: "Managing partner", update_frequency: "Weekly", customer_permission: "yes", human_approval: "yes", financial_access: "Partners and bookkeeper", systems: ["spreadsheets", "email", "accounting"], staff_tool_comfort: "high" },
-  "freshstart-cleaning": { records_maintainer: "Owner", reviewer: "Owner", update_frequency: "Monthly", customer_permission: "yes", human_approval: "yes", financial_access: "Owner and bookkeeper", systems: ["accounting", "email"], staff_tool_comfort: "medium" },
-  "beauty-lounge": { lead_sources: "Walk-ins and Instagram", followup_tracking: "Not tracked", records_maintainer: "Front desk", reviewer: "Owner", update_frequency: "Weekly totals on Sunday", systems: ["paper", "appointments"], staff_tool_comfort: "low", customer_permission: "unsure" },
-  "neighborhood-kitchen": { records_maintainer: "General manager", reviewer: "Owner", update_frequency: "Weekly", systems: ["pos", "spreadsheets", "accounting"], financial_access: "Owner and GM", staff_tool_comfort: "medium" },
-};
+const BUSINESSES = Object.fromEntries(PRESETS.map((p) => [p.slug, { name: p.name, ...p.profile, data_path: p.records === "manual" ? "manual" : "spreadsheet", onboarded: true }])) as unknown as Record<SampleSlug, Record<string, unknown>>;
+const ANSWERS = Object.fromEntries(PRESETS.map((p) => [p.slug, p.answers])) as Partial<Record<SampleSlug, Record<string, unknown>>>;
 
 function mappingFor(rows: Record<string, unknown>[], type: RecordType, statusOverrides: Record<string, string> = {}): ConfirmedMapping {
   const s = heuristicMapping(Object.keys(rows[0]), rows, type);
@@ -88,7 +61,17 @@ async function populate(slug: SampleSlug, businessId: string) {
       await db().from("cash_positions").insert({ business_id: businessId, as_of: "2026-11-07", cash_on_hand: 38500 });
       break;
     case "beauty-lounge":
-      await db().from("manual_weekly_entries").insert(S.beautyLoungeWeeks().map((w) => ({ business_id: businessId, ...w })));
+    case "iron-oak-fitness":
+    case "paws-claws-grooming":
+      await db().from("manual_weekly_entries").insert((presetFor(slug)!.weeks ?? []).map((w) => ({ business_id: businessId, ...w })));
+      break;
+    case "summit-hvac":
+      await load(businessId, "summit-hvac-jobs.csv", S.summitJobs(), "sales_opportunity", { "On Hold": "open" });
+      await load(businessId, "summit-hvac-invoices.csv", S.summitInvoices(), "invoice");
+      break;
+    case "riverside-auto":
+      await load(businessId, "riverside-auto-repair-orders.csv", S.riversideInvoices(), "invoice");
+      await load(businessId, "riverside-auto-expenses.csv", S.riversideExpenses(), "expense");
       break;
     case "neighborhood-kitchen":
       await load(businessId, "neighborhood-kitchen-expenses.csv", S.kitchenExpenses(), "expense");
@@ -107,8 +90,9 @@ export async function resetSampleBusiness(slug: SampleSlug, opts: { scratch?: bo
   if (!b.is_sample) throw new Error("Only fictional sample businesses can be reset.");
   await clearBusinessData(b.id);
   const blank = { industry: null, sales_tracking: null, invoicing: null, biggest_challenge: null, ai_experience: null, main_goal: null };
-  if (opts.scratch && slug === "metro-roofing") {
-    await db().from("businesses").update({ ...blank, name: "Metro Roofing", data_path: "spreadsheet", onboarded: false }).eq("id", b.id);
+  if (opts.scratch) {
+    const p = presetFor(slug)!;
+    await db().from("businesses").update({ ...blank, name: p.name, data_path: p.records === "manual" ? "manual" : "spreadsheet", onboarded: false }).eq("id", b.id);
     return b.id as string;
   }
   await db().from("businesses").update({ ...blank, ...BUSINESSES[slug] }).eq("id", b.id);
@@ -155,7 +139,8 @@ export async function seedAll(log: (s: string) => void = () => {}) {
   const harborline = sponsors.find((s) => s.slug === "harborline")!.id;
   for (const slug of Object.keys(BUSINESSES) as SampleSlug[]) {
     log(`Seeding ${slug}`);
-    const b = must(await db().from("businesses").insert({ slug, sponsor_id: northstar, is_sample: true, ...BUSINESSES[slug] }).select("id").single(), "Business") as { id: string };
+    const sponsorId = presetFor(slug)!.sponsor === "harborline" ? harborline : northstar;
+    const b = must(await db().from("businesses").insert({ slug, sponsor_id: sponsorId, is_sample: true, ...BUSINESSES[slug] }).select("id").single(), "Business") as { id: string };
     await populate(slug, b.id);
   }
   log("Seeding simulated cohorts");
