@@ -171,7 +171,7 @@ export async function draftPaymentReminder(businessId: string, invoiceId: string
 async function saveDraft(businessId: string, d: { kind: string; record_type: string; record_id: string; recipient: string | null; subject: string; body: string; written_by: string }) {
   const r = must(await db().from("drafts").insert({ business_id: businessId, ...d }).select("*").single(), "Save draft");
   await repo.logEvent(businessId, "draft_prepared", { kind: d.kind });
-  return r as { id: string; subject: string; body: string; written_by: string };
+  return r as unknown as { id: string; subject: string; body: string; written_by: string };
 }
 
 export async function editDraft(businessId: string, id: string, subject: string, body: string) {

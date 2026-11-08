@@ -1,103 +1,84 @@
-import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, Gauge, TrendingUp, Wallet, Building2, ShieldCheck, Compass } from "lucide-react";
+import { listBusinesses } from "@/lib/db/repo";
+import { db } from "@/lib/db/client";
+import { SignInButton } from "@/components/app/signin-button";
+import { liveAiAvailable } from "@/lib/ai/openai";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Landing() {
+  const [businesses, sponsors] = await Promise.all([listBusinesses(), db().from("sponsors").select("slug,name,program_name").order("created_at")]);
+  const live = liveAiAvailable();
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen">
+      <div className="bg-[#0b1530] text-white">
+        <div className="mx-auto max-w-6xl px-6 pb-16 pt-8">
+          <div className="flex items-center gap-2.5">
+            <div className="grid size-8 place-items-center rounded-lg bg-gradient-to-br from-sky-400 to-brand-600 text-sm font-bold">S</div>
+            <span className="font-semibold">Sirrom Business AI Navigator</span>
+            <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-slate-300">by Sirrom Studios</span>
+            <span className={`ml-auto rounded-full px-2.5 py-1 text-xs ${live ? "bg-emerald-400/15 text-emerald-300" : "bg-white/10 text-slate-300"}`}>{live ? "Live AI: on" : "Live AI: unavailable"}</span>
+          </div>
+          <div className="mt-14 max-w-3xl animate-fade-in">
+            <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">Tell us about your business. We&apos;ll help you put AI to work.</h1>
+            <p className="mt-4 text-lg text-slate-300">Understand where AI can help, get your information ready, and turn your own records into sales and financial results you can measure.</p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link href="/demo" className="inline-flex items-center gap-2 rounded-lg bg-sky-500 px-5 py-3 font-medium hover:bg-sky-400"><Compass className="size-4" /> Start the 5-minute demo</Link>
+              <Link href="/start" className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-5 py-3 font-medium hover:bg-white/15">Set up a new business <ArrowRight className="size-4" /></Link>
+            </div>
+          </div>
+          <div className="mt-14 grid gap-4 sm:grid-cols-3">
+            {[
+              { Icon: Gauge, t: "AI Readiness Agent", d: "Checks your real records, capability by capability, and helps you fix what's missing." },
+              { Icon: TrendingUp, t: "Sales Intelligence Agent", d: "Finds open estimates that need follow-up and drafts the messages for your approval." },
+              { Icon: Wallet, t: "Financial Intelligence Agent", d: "Finds overdue invoices, rising costs and cash gaps, with exact calculations." },
+            ].map(({ Icon, t, d }) => (
+              <div key={t} className="rounded-xl bg-white/5 p-5 ring-1 ring-white/10">
+                <Icon className="size-5 text-sky-300" />
+                <div className="mt-3 font-semibold">{t}</div>
+                <p className="mt-1 text-sm text-slate-400">{d}</p>
+              </div>
+            ))}
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
+      <div className="mx-auto grid max-w-6xl gap-8 px-6 py-12 lg:grid-cols-[2fr_1fr]">
+        <div>
+          <h2 className="text-lg font-semibold">Explore a sample business</h2>
+          <p className="mt-1 text-sm text-slate-500">Fictional businesses with fictional records. Every number is calculated live from their data.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {businesses.map((b) => (
+              <SignInButton key={b.id} businessId={b.id} className="group rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-brand-300 hover:shadow-md">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">{b.name}</span>
+                  <ArrowRight className="size-4 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand-500" />
+                </div>
+                <div className="mt-0.5 text-sm text-slate-500">{b.industry ?? "Starts at onboarding"} · {b.data_path === "manual" ? "Paper records" : "Spreadsheets"}</div>
+              </SignInButton>
+            ))}
+          </div>
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold">Sponsor view</h2>
+          <p className="mt-1 text-sm text-slate-500">How a sponsoring organization sees program adoption. Aggregate counts only.</p>
+          <div className="mt-4 space-y-3">
+            {(sponsors.data ?? []).map((s) => (
+              <SignInButton key={s.slug} sponsorSlug={s.slug} className="flex w-full items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-brand-300 hover:shadow-md">
+                <Building2 className="mt-0.5 size-5 text-slate-400" />
+                <div>
+                  <div className="font-medium">{s.program_name}</div>
+                  <div className="text-sm text-slate-500">{s.name}</div>
+                </div>
+              </SignInButton>
+            ))}
+          </div>
+          <div className="mt-4 flex gap-2 rounded-xl bg-slate-100 p-3 text-xs text-slate-600">
+            <ShieldCheck className="size-4 shrink-0" />
+            Sponsor names are fictional. No real company has approved, funded or endorsed this prototype.
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

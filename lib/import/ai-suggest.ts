@@ -99,7 +99,7 @@ function enforceRules(p: z.infer<typeof RESPONSE>, headers: string[], rows: Reco
   const used = new Set<string>();
   const columns = headers.map((h) => {
     const c = p.columns.find((x) => x.header === h);
-    let field = c?.field && validKeys.has(c.field) && !used.has(c.field) ? c.field : null;
+    const field = c?.field && validKeys.has(c.field) && !used.has(c.field) ? c.field : null;
     if (field) used.add(field);
     return { header: h, field, confidence: field ? c!.confidence : "low", reason: c?.reason ?? "Not recognized; kept in the original data" } as MappingSuggestion["columns"][number];
   });
