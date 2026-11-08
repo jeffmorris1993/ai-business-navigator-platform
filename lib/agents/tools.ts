@@ -12,6 +12,7 @@ import * as actions from "../services/actions";
 import type { ToolDef, ToolContext } from "./types";
 import { CATEGORY_KEYS, categoryDef } from "../intelligence/categories";
 import { upsertFinding, listFindings, getFinding, resolveFinding } from "../intelligence/findings";
+import { evaluateFinding } from "../intelligence/evaluate";
 
 const ALL = ["readiness", "sales", "finance", "advisor"] as const;
 const capKeys = CAPABILITIES.map((c) => c.key) as [CapabilityKey, ...CapabilityKey[]];
@@ -407,6 +408,11 @@ export const TOOLS: ToolDef[] = [
       const f = await getFinding(ctx.businessId, finding_id);
       if (!f) throw new Error("Finding not found");
       if (f.agent !== ctx.agent && f.agent !== "software") throw new Error(`That finding belongs to the ${f.agent} agent.`);
+      // Software guard: the AI can't close an issue the records show is still there. Update it with record_finding instead.
+      if (categoryDef(f.category)?.verifiable) {
+        const ev = evaluateFinding(f.category, f.record_refs, f.subject, await loadReadinessInput(ctx.businessId));
+        if (ev.valid && ev.stillApplies) throw new Error(`The records show this still applies (${ev.qualifying.length || "current"} record(s)${ev.value != null ? `, value ${formatMoney(ev.value)}` : ""}). Don't resolve it; call record_finding to update it if the details changed.`);
+      }
       const ok = await resolveFinding(ctx.businessId, finding_id, "ai_scan", reason);
       return { summary: ok ? `Resolved finding: ${f.title}` : "Finding was already closed", data: { resolved: ok } };
     },
