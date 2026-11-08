@@ -28,6 +28,8 @@ async function main() {
   csv("metro-roofing-estimates.csv", S.metroEstimates(false));
   csv("metro-roofing-estimates-updated.csv", S.metroEstimates(true));
   csv("metro-roofing-invoices.csv", S.metroInvoices());
+  csv("metro-roofing-expenses.csv", S.metroExpenses());
+  csv("metro-roofing-new-estimates.csv", S.metroNewEstimates());
   csv("brightpath-proposals.csv", S.brightpathProposals());
   csv("brightpath-invoices.csv", S.brightpathInvoices());
   csv("freshstart-invoices.csv", S.freshstartInvoices());

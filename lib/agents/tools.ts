@@ -10,6 +10,8 @@ import { loadReadinessInput, runAssessment } from "../readiness/engine";
 import { assessAll, summarizeAreas, CAPABILITIES, RULES, type CapabilityKey } from "../readiness/rules";
 import * as actions from "../services/actions";
 import type { ToolDef, ToolContext } from "./types";
+import { CATEGORY_KEYS, categoryDef } from "../intelligence/categories";
+import { upsertFinding, listFindings, getFinding, resolveFinding } from "../intelligence/findings";
 
 const ALL = ["readiness", "sales", "finance", "advisor"] as const;
 const capKeys = CAPABILITIES.map((c) => c.key) as [CapabilityKey, ...CapabilityKey[]];
@@ -193,10 +195,10 @@ export const TOOLS: ToolDef[] = [
   def({
     name: "draft_sales_followup",
     description: "Prepare a follow-up message draft for one opportunity. The owner must review and approve it; nothing is sent.",
-    input: z.object({ opportunity_id: z.string().uuid() }),
+    input: z.object({ opportunity_id: z.string().uuid(), finding_id: z.string().uuid().optional().describe("The finding this draft addresses") }),
     agents: ["sales", "advisor"],
-    async run(ctx, { opportunity_id }) {
-      const d = await actions.draftSalesFollowup(ctx.businessId, opportunity_id);
+    async run(ctx, { opportunity_id, finding_id }) {
+      const d = await actions.draftSalesFollowup(ctx.businessId, opportunity_id, finding_id);
       return { summary: `Prepared a follow-up draft (${d.written_by === "ai" ? "written by AI" : "from template"}) for review`, data: { draft_id: d.id, subject: d.subject, body: d.body, status: "draft", sent: false }, links: [{ label: "Review drafts", href: "/actions#drafts" }] };
     },
   }),
@@ -262,10 +264,10 @@ export const TOOLS: ToolDef[] = [
   def({
     name: "draft_payment_reminder",
     description: "Prepare a polite payment reminder draft for one unpaid invoice. The owner must review and approve it; nothing is sent.",
-    input: z.object({ invoice_id: z.string().uuid() }),
+    input: z.object({ invoice_id: z.string().uuid(), finding_id: z.string().uuid().optional().describe("The finding this draft addresses") }),
     agents: ["finance", "advisor"],
-    async run(ctx, { invoice_id }) {
-      const d = await actions.draftPaymentReminder(ctx.businessId, invoice_id);
+    async run(ctx, { invoice_id, finding_id }) {
+      const d = await actions.draftPaymentReminder(ctx.businessId, invoice_id, finding_id);
       return { summary: `Prepared a payment reminder draft (${d.written_by === "ai" ? "written by AI" : "from template"}) for review`, data: { draft_id: d.id, subject: d.subject, body: d.body, status: "draft", sent: false }, links: [{ label: "Review drafts", href: "/actions#drafts" }] };
     },
   }),
@@ -291,10 +293,12 @@ export const TOOLS: ToolDef[] = [
       explanation: z.string().max(2000),
       priority: z.enum(["high", "medium", "low"]).default("medium"),
       record_refs: z.array(z.object({ type: z.enum(["sales_opportunity", "invoice", "expense", "appointment", "manual_week"]), id: z.string(), label: z.string().max(120).optional() })).max(50).default([]),
+      finding_id: z.string().uuid().optional().describe("The finding this task addresses"),
     }),
     agents: [...ALL],
     async run(ctx, i) {
-      const r = await actions.createTask(ctx.businessId, { ...i, source_agent: ctx.agent });
+      if (i.finding_id && !(await getFinding(ctx.businessId, i.finding_id))) throw new Error("finding_id not found");
+      const r = await actions.createTask(ctx.businessId, { ...i, source_agent: ctx.agent === "orchestrator" ? "advisor" : ctx.agent });
       return { summary: r.duplicate ? `Task already in your plan: "${i.title}"` : `Created task: "${i.title}"`, data: r, links: [{ label: "My Action Plan", href: "/actions" }] };
     },
   }),
@@ -351,6 +355,85 @@ export const TOOLS: ToolDef[] = [
     async run(ctx, i) {
       const r = await actions.recordPayment(ctx.businessId, i.invoice_id, i.amount, i.paid_on, i.note);
       return { summary: `Recorded ${formatMoney(i.amount, { cents: true })} on invoice ${r.invoice_no}; new balance ${formatMoney(r.newBalance, { cents: true })}`, data: r };
+    },
+  }),
+
+  // ---------------- Intelligence findings ----------------
+  def({
+    name: "list_open_findings",
+    description: "List findings from earlier intelligence scans that are still open (with ids, category, record refs, software-computed value and status). Check this before recording, so you update or resolve instead of duplicating.",
+    input: z.object({ category: z.enum(CATEGORY_KEYS).optional() }),
+    agents: ["readiness", "sales", "finance", "advisor", "orchestrator"],
+    async run(ctx, { category }) {
+      const rows = (await listFindings(ctx.businessId, { open: true })).filter((f) => !category || f.category === category);
+      return { summary: `Reviewed ${rows.length} open findings from earlier scans`, data: rows.map((f) => ({ id: f.id, agent: f.agent, category: f.category, title: f.title, priority: f.priority, status: f.status, value: f.value, value_kind: f.value_kind, subject: f.subject, record_refs: f.record_refs, last_verified_at: f.last_verified_at })) };
+    },
+  }),
+  def({
+    name: "record_finding",
+    description: "Save a finding to the owner's Intelligence Inbox. Software validates the record references, computes the dollar value and merges it with an existing open finding about the same issue. Categories: " + CATEGORY_KEYS.join(", ") + ".",
+    input: z.object({
+      category: z.enum(CATEGORY_KEYS),
+      title: z.string().min(5).max(160).describe("Short, specific, no dollar amounts"),
+      explanation: z.string().min(10).max(1500).describe("What, why it matters, evidence"),
+      priority: z.enum(["critical", "high", "medium", "low"]),
+      record_refs: z.array(z.object({ type: z.enum(["sales_opportunity", "invoice", "expense_category", "capability", "customer"]), id: z.string().max(120), label: z.string().max(120).optional() })).max(40).default([]),
+      subject: z.string().max(120).optional().describe("Customer name for customer_balance; expense category for expense_increase; capability key for readiness_gap"),
+      evidence_quality: z.enum(["verified_records", "partial_records", "owner_reported"]).default("verified_records"),
+      recommended_action: z.string().min(5).max(400),
+    }),
+    agents: ["readiness", "sales", "finance"],
+    async run(ctx, i) {
+      const def = categoryDef(i.category)!;
+      if (def.agent !== ctx.agent) throw new Error(`The ${ctx.agent} agent can't record ${i.category} findings (owned by the ${def.agent} agent).`);
+      const r = await upsertFinding(ctx.businessId, { ...i, agent: ctx.agent as "readiness" | "sales" | "finance", scanId: ctx.scanId, runId: ctx.runId });
+      if (!r.ok) throw new Error(r.error);
+      return { summary: `${r.outcome === "created" ? "Recorded new" : "Updated existing"} finding: ${i.title}`, data: { finding_id: r.id, outcome: r.outcome, software_computed_value: r.value, value_kind: r.value_kind, records: r.qualifyingRefs }, links: [{ label: "Intelligence Inbox", href: `/inbox?f=${r.id}` }] };
+    },
+  }),
+  def({
+    name: "resolve_finding",
+    description: "Close an open finding that your investigation shows no longer applies. Give the reason.",
+    input: z.object({ finding_id: z.string().uuid(), reason: z.string().min(5).max(300) }),
+    agents: ["readiness", "sales", "finance"],
+    async run(ctx, { finding_id, reason }) {
+      const f = await getFinding(ctx.businessId, finding_id);
+      if (!f) throw new Error("Finding not found");
+      if (f.agent !== ctx.agent && f.agent !== "software") throw new Error(`That finding belongs to the ${f.agent} agent.`);
+      const ok = await resolveFinding(ctx.businessId, finding_id, "ai_scan", reason);
+      return { summary: ok ? `Resolved finding: ${f.title}` : "Finding was already closed", data: { resolved: ok } };
+    },
+  }),
+  def({
+    name: "get_finding",
+    description: "Get one finding with its supporting records (estimates or invoices), linked drafts and tasks. Use to explain why something was prioritized.",
+    input: z.object({ finding_id: z.string().uuid() }),
+    agents: ["readiness", "sales", "finance", "advisor", "orchestrator"],
+    async run(ctx, { finding_id }) {
+      const f = await getFinding(ctx.businessId, finding_id);
+      if (!f) throw new Error("Finding not found");
+      const ids = f.record_refs.map((r) => r.id);
+      const [opps, invs, drafts, tasks] = await Promise.all([
+        ids.length ? db().from("sales_opportunities").select("id,customer,amount,quoted_on,last_contact_on,status,source_row").eq("business_id", ctx.businessId).in("id", ids) : Promise.resolve({ data: [] }),
+        ids.length ? db().from("invoices").select("id,invoice_no,customer,due_on,total_amount,amount_due,source_row").eq("business_id", ctx.businessId).in("id", ids) : Promise.resolve({ data: [] }),
+        db().from("drafts").select("id,kind,recipient,status").eq("business_id", ctx.businessId).eq("finding_id", finding_id),
+        db().from("tasks").select("id,title,status").eq("business_id", ctx.businessId).eq("finding_id", finding_id),
+      ]);
+      return { summary: `Loaded finding "${f.title}" with ${ids.length} supporting records`, data: { finding: f, opportunities: opps.data, invoices: invs.data, drafts: drafts.data, tasks: tasks.data, today: demoToday() }, links: [{ label: "Open in Inbox", href: `/inbox?f=${f.id}` }] };
+    },
+  }),
+  def({
+    name: "prioritize_findings",
+    description: "Set the final priority of open findings after comparing them across sales, finance and readiness.",
+    input: z.object({ priorities: z.array(z.object({ finding_id: z.string().uuid(), priority: z.enum(["critical", "high", "medium", "low"]) })).min(1).max(30) }),
+    agents: ["orchestrator"],
+    async run(ctx, { priorities }) {
+      let n = 0;
+      for (const p of priorities) {
+        const r = await db().from("findings").update({ priority: p.priority }).eq("id", p.finding_id).eq("business_id", ctx.businessId).select("id");
+        n += r.data?.length ?? 0;
+      }
+      return { summary: `Prioritized ${n} findings`, data: { updated: n } };
     },
   }),
 ];

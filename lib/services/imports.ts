@@ -9,6 +9,7 @@ import { headerSignature, RECORD_TYPES, type RecordType } from "../import/schema
 import { normalizeRows, validateMapping } from "../import/normalize";
 import { toDbRows } from "../import/toRows";
 import { runAssessment } from "../readiness/engine";
+import { revalidateFindings } from "../intelligence/findings";
 import type { ConfirmedMapping, MappingSuggestion } from "../import/types";
 import { liveAiAvailable } from "../ai/openai";
 
@@ -143,6 +144,7 @@ export async function commitImport(
   );
   await repo.logEvent(businessId, "data_imported", { filename: parsed.filename, recordType: mapping.recordType, inserted, updated, issues: issues.length });
   const assessment = await runAssessment(businessId, `Imported ${parsed.filename}`);
+  await revalidateFindings(businessId, `Imported ${parsed.filename}`);
   return { ok: true as const, sourceFileId: sf.id, inserted, updated, issues: issues.slice(0, 50), issueCount: issues.length, warnings, assessment };
 }
 

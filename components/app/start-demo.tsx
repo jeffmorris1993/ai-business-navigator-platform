@@ -13,7 +13,7 @@ export function StartDemoButton() {
       onClick={async () => {
         setBusy(true);
         try {
-          await api("/api/demo/reset", { slug: "metro-roofing" });
+          await api("/api/demo/reset", { slug: "metro-roofing", scratch: true });
           localStorage.setItem("sirrom_demo_step", "0");
           router.push("/onboarding");
         } catch {

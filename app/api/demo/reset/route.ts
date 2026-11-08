@@ -8,9 +8,9 @@ const SLUGS: SampleSlug[] = ["metro-roofing", "brightpath-consulting", "freshsta
 
 // Resets one fictional sample business to its starting state and signs in as its owner.
 export const POST = handle(async (req: Request) => {
-  const { slug } = await jsonBody<{ slug: SampleSlug }>(req);
+  const { slug, scratch } = await jsonBody<{ slug: SampleSlug; scratch?: boolean }>(req);
   if (!SLUGS.includes(slug)) throw new ActionError("Unknown sample business.");
-  const id = await resetSampleBusiness(slug);
+  const id = await resetSampleBusiness(slug, { scratch: Boolean(scratch) });
   await setSession({ role: "owner", businessId: id });
   return { ok: true };
 });

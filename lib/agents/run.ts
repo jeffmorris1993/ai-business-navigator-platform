@@ -44,36 +44,57 @@ function describePending(tool: ToolDef, input: Record<string, unknown>) {
   return tool.name;
 }
 
-export async function runAgent(opts: { businessId: string; agent: AgentName; question: string; conversationId?: string | null; onStep?: (s: StepRecord) => void; model?: ModelClient }) {
+export interface RunAgentOptions {
+  businessId: string;
+  agent: AgentName;
+  question: string;
+  conversationId?: string | null;
+  onStep?: (s: StepRecord, runId: string) => void;
+  model?: ModelClient;
+  // Scan options
+  tools?: ToolDef[];
+  system?: string;
+  maxIterations?: number;
+  deadlineMs?: number;
+  scanId?: string;
+  parentRunId?: string;
+  noConversation?: boolean;
+}
+
+export async function runAgent(opts: RunAgentOptions) {
   const model = opts.model ?? openAiModelClient();
   const business = await repo.getBusiness(opts.businessId);
   let conversationId = opts.conversationId ?? null;
   let history: Array<{ role: "user" | "assistant"; content: string }> = [];
-  if (conversationId) {
+  if (opts.noConversation) {
+    // scans don't use chat memory
+  } else if (conversationId) {
     const c = await db().from("conversations").select("messages").eq("id", conversationId).eq("business_id", opts.businessId).maybeSingle();
     if (c.data) history = c.data.messages as typeof history;
     else conversationId = null;
   }
-  if (!conversationId) {
+  if (!conversationId && !opts.noConversation) {
     const c = must(await db().from("conversations").insert({ business_id: opts.businessId }).select("id").single(), "Conversation") as { id: string };
     conversationId = c.id;
   }
   const run = must(
-    await db().from("agent_runs").insert({ business_id: opts.businessId, agent: opts.agent, conversation_id: conversationId, question: opts.question.slice(0, 2000), model: model.name }).select("id").single(),
+    await db().from("agent_runs").insert({ business_id: opts.businessId, agent: opts.agent, conversation_id: conversationId, question: opts.question.slice(0, 2000), model: model.name, scan_id: opts.scanId ?? null, parent_run_id: opts.parentRunId ?? null }).select("id").single(),
     "Agent run",
   ) as { id: string };
 
   try {
     const result = await runAgentLoop({
       model,
-      tools: toolsFor(opts.agent),
-      ctx: { businessId: opts.businessId, agent: opts.agent },
-      system: systemPrompt(opts.agent, business, demoToday()),
+      tools: opts.tools ?? toolsFor(opts.agent),
+      ctx: { businessId: opts.businessId, agent: opts.agent, runId: run.id, scanId: opts.scanId, inScan: Boolean(opts.scanId) },
+      system: opts.system ?? systemPrompt(opts.agent, business, demoToday()),
       history,
-      question: opts.question.slice(0, 2000),
+      question: opts.question.slice(0, 4000),
+      maxIterations: opts.maxIterations,
+      deadlineMs: opts.deadlineMs,
       onStep: async (s) => {
         await db().from("agent_steps").insert({ run_id: run.id, business_id: opts.businessId, step_no: s.step_no, kind: s.kind, tool: s.tool ?? null, input: s.input ?? null, output_summary: s.output_summary.slice(0, 1000), output: safeJson(s.output), ok: s.ok, duration_ms: s.duration_ms }).then(() => {}, () => {});
-        opts.onStep?.(s);
+        opts.onStep?.(s, run.id);
       },
       createPending: async (tool, input) => {
         const summary = describePending(tool, input as Record<string, unknown>);
@@ -81,8 +102,10 @@ export async function runAgent(opts: { businessId: string; agent: AgentName; que
         return { id: p.id, tool: tool.name, summary, input };
       },
     });
-    const newHistory = [...history, { role: "user" as const, content: opts.question }, { role: "assistant" as const, content: result.answer }].slice(-20);
-    await db().from("conversations").update({ messages: newHistory, updated_at: new Date().toISOString() }).eq("id", conversationId);
+    if (conversationId) {
+      const newHistory = [...history, { role: "user" as const, content: opts.question }, { role: "assistant" as const, content: result.answer }].slice(-20);
+      await db().from("conversations").update({ messages: newHistory, updated_at: new Date().toISOString() }).eq("id", conversationId);
+    }
     await db().from("agent_runs").update({ answer: result.answer, status: "completed", finished_at: new Date().toISOString() }).eq("id", run.id);
     await repo.logEvent(opts.businessId, "agent_run", { agent: opts.agent, tools: result.steps.filter((s) => s.kind === "tool_call").map((s) => s.tool) });
     return { runId: run.id, conversationId, model: model.name, ...result };

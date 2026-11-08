@@ -2,6 +2,7 @@ import "server-only";
 import { db, must } from "../db/client";
 import * as repo from "../db/repo";
 import { runAssessment } from "../readiness/engine";
+import { revalidateFindings, rollupStatuses } from "../intelligence/findings";
 import { applyPayment } from "../calc/finance";
 import { demoToday, daysBetween, isValidIsoDate } from "../calc/dates";
 import { formatMoney } from "../calc/money";
@@ -28,7 +29,8 @@ export async function setContactDates(businessId: string, updates: Array<{ id: s
   }
   await repo.logEvent(businessId, "records_updated", { field: "last_contact_on", filled, unknown });
   const assessment = await runAssessment(businessId, `Added ${filled} contact date(s), marked ${unknown} unknown`);
-  return { filled, unknown, assessment };
+  const verification = await revalidateFindings(businessId, "Contact dates updated");
+  return { filled, unknown, assessment, verification };
 }
 
 export async function updateRecord(businessId: string, type: "sales_opportunity" | "invoice", id: string, patch: Record<string, unknown>) {
@@ -45,7 +47,8 @@ export async function updateRecord(businessId: string, type: "sales_opportunity"
   if (!r.length) throw new ActionError("Record not found.");
   await repo.logEvent(businessId, "records_updated", { type, id, fields: Object.keys(clean) });
   await runAssessment(businessId, `Updated a ${type.replace("_", " ")}`);
-  return { updated: true, fields: Object.keys(clean) };
+  const verification = await revalidateFindings(businessId, `Updated a ${type.replace("_", " ")}`);
+  return { updated: true, fields: Object.keys(clean), verification };
 }
 
 export async function recordPayment(businessId: string, invoiceId: string, amount: number, paidOn: string, note?: string) {
@@ -58,7 +61,8 @@ export async function recordPayment(businessId: string, invoiceId: string, amoun
   must(await db().from("invoices").update({ amount_due: newBalance, updated_at: new Date().toISOString() }).eq("id", invoiceId).eq("business_id", businessId), "Update balance");
   await repo.logEvent(businessId, "payment_recorded", { invoice_no: inv.invoice_no, amount, newBalance });
   await runAssessment(businessId, `Payment recorded on invoice ${inv.invoice_no ?? ""}`.trim());
-  return { invoice_no: inv.invoice_no, customer: inv.customer, previousBalance: Number(inv.amount_due), payment: amount, newBalance, overpayment };
+  const verification = await revalidateFindings(businessId, `Payment recorded on invoice ${inv.invoice_no ?? ""}`.trim());
+  return { invoice_no: inv.invoice_no, customer: inv.customer, previousBalance: Number(inv.amount_due), payment: amount, newBalance, overpayment, verification };
 }
 
 export async function saveWeek(businessId: string, w: { week_start: string; available_slots?: number | null; booked?: number | null; cancellations?: number | null; unfilled_slots?: number | null; avg_service_value?: number | null; weekly_sales?: number | null }) {
@@ -78,19 +82,28 @@ export async function saveCash(businessId: string, asOf: string, cash: number) {
 
 // ---------- Tasks ----------
 
-export async function createTask(businessId: string, t: { source_agent: string; title: string; explanation?: string; priority?: string; record_refs?: RecordRef[] }) {
+export async function createTask(businessId: string, t: { source_agent: string; title: string; explanation?: string; priority?: string; record_refs?: RecordRef[]; finding_id?: string | null }) {
   const title = t.title.trim().slice(0, 200);
   if (!title) throw new ActionError("Task needs a title.");
   const dupe = await db().from("tasks").select("id").eq("business_id", businessId).eq("title", title).in("status", ["open", "in_progress"]).maybeSingle();
   if (dupe.data) return { id: dupe.data.id, duplicate: true };
+  if (t.finding_id) {
+    // One open task per finding and set of records: an AI rescan re-wording a task shouldn't add another.
+    const ids = new Set((t.record_refs ?? []).map((r) => r.id));
+    const same = ((await db().from("tasks").select("id,record_refs").eq("business_id", businessId).eq("finding_id", t.finding_id).in("status", ["open", "in_progress"])).data ?? [])
+      .find((x) => { const xs = ((x.record_refs as RecordRef[]) ?? []).map((r) => r.id); return ids.size === 0 ? xs.length === 0 : xs.some((id) => ids.has(id)); });
+    if (same) return { id: same.id as string, duplicate: true };
+  }
   const r = must(
     await db().from("tasks").insert({
       business_id: businessId, source_agent: t.source_agent, title, explanation: t.explanation?.slice(0, 2000) ?? null,
       priority: ["high", "medium", "low"].includes(t.priority ?? "") ? t.priority : "medium", record_refs: (t.record_refs ?? []).slice(0, 50),
+      finding_id: t.finding_id ?? null,
     }).select("id").single(),
     "Create task",
   ) as { id: string };
   await repo.logEvent(businessId, "task_created", { source: t.source_agent });
+  if (t.finding_id) await rollupStatuses(businessId);
   return { id: r.id, duplicate: false };
 }
 
@@ -111,7 +124,9 @@ export async function updateTask(businessId: string, id: string, patch: { status
   if (patch.status === "done") {
     await repo.logEvent(businessId, "task_completed", { id });
     await runAssessment(businessId, "Completed a recommended action");
+    await revalidateFindings(businessId, "Task completed");
   }
+  await rollupStatuses(businessId);
   return { updated: true };
 }
 
@@ -135,7 +150,7 @@ async function writeWithAi(system: string, facts: Record<string, unknown>): Prom
   return null;
 }
 
-export async function draftSalesFollowup(businessId: string, opportunityId: string) {
+export async function draftSalesFollowup(businessId: string, opportunityId: string, findingId?: string | null) {
   const b = await repo.getBusiness(businessId);
   const o = (await db().from("sales_opportunities").select("*").eq("id", opportunityId).eq("business_id", businessId).single()).data;
   if (!o) throw new ActionError("Opportunity not found.");
@@ -150,10 +165,10 @@ export async function draftSalesFollowup(businessId: string, opportunityId: stri
     subject: `Following up on your estimate from ${b.name}`,
     body: `Hi ${first},\n\nI wanted to follow up on the estimate we sent${o.quoted_on ? ` on ${o.quoted_on}` : ""}${o.amount != null ? ` for ${formatMoney(Number(o.amount))}` : ""}. Do you have any questions, or would it help to walk through the details together?\n\nHappy to work around your schedule.\n\nThanks,\n${b.name}`,
   };
-  return saveDraft(businessId, { kind: "sales_followup", record_type: "sales_opportunity", record_id: o.id, recipient: o.customer, ...draft, written_by: ai ? "ai" : "template" });
+  return saveDraft(businessId, { kind: "sales_followup", record_type: "sales_opportunity", record_id: o.id, recipient: o.customer, ...draft, written_by: ai ? "ai" : "template", finding_id: findingId ?? null });
 }
 
-export async function draftPaymentReminder(businessId: string, invoiceId: string) {
+export async function draftPaymentReminder(businessId: string, invoiceId: string, findingId?: string | null) {
   const b = await repo.getBusiness(businessId);
   const i = (await db().from("invoices").select("*").eq("id", invoiceId).eq("business_id", businessId).single()).data;
   if (!i) throw new ActionError("Invoice not found.");
@@ -165,12 +180,17 @@ export async function draftPaymentReminder(businessId: string, invoiceId: string
     subject: `Reminder: invoice ${i.invoice_no ?? ""} from ${b.name}`.replace("  ", " "),
     body: `Hello ${i.customer ?? ""},\n\nThis is a friendly reminder that invoice ${i.invoice_no ?? ""}${i.due_on ? `, due ${i.due_on},` : ""} has a remaining balance of ${formatMoney(Number(i.amount_due), { cents: true })}. If you've already sent payment, thank you, and please disregard this note.\n\nLet us know if you have any questions.\n\nBest regards,\n${b.name}`,
   };
-  return saveDraft(businessId, { kind: "payment_reminder", record_type: "invoice", record_id: i.id, recipient: i.customer, ...draft, written_by: ai ? "ai" : "template" });
+  return saveDraft(businessId, { kind: "payment_reminder", record_type: "invoice", record_id: i.id, recipient: i.customer, ...draft, written_by: ai ? "ai" : "template", finding_id: findingId ?? null });
 }
 
-async function saveDraft(businessId: string, d: { kind: string; record_type: string; record_id: string; recipient: string | null; subject: string; body: string; written_by: string }) {
-  const r = must(await db().from("drafts").insert({ business_id: businessId, ...d }).select("*").single(), "Save draft");
+async function saveDraft(businessId: string, d: { kind: string; record_type: string; record_id: string; recipient: string | null; subject: string; body: string; written_by: string; finding_id: string | null }) {
+  // One open draft per record and kind: regenerate instead of piling up duplicates.
+  const existing = (await db().from("drafts").select("id").eq("business_id", businessId).eq("kind", d.kind).eq("record_id", d.record_id).eq("status", "draft").maybeSingle()).data;
+  const r = existing
+    ? must(await db().from("drafts").update({ ...d, updated_at: new Date().toISOString() }).eq("id", existing.id).select("*").single(), "Update draft")
+    : must(await db().from("drafts").insert({ business_id: businessId, ...d }).select("*").single(), "Save draft");
   await repo.logEvent(businessId, "draft_prepared", { kind: d.kind });
+  if (d.finding_id) await rollupStatuses(businessId);
   return r as unknown as { id: string; subject: string; body: string; written_by: string };
 }
 

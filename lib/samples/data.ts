@@ -203,3 +203,29 @@ export function beautyLoungeWeeks() {
     { week_start: "2026-10-26", available_slots: 120, booked: 94, cancellations: 8, unfilled_slots: 26, avg_service_value: 70, weekly_sales: 6020 },
   ];
 }
+
+// Metro Roofing expenses (6 months). Roofing materials costs climb over the last three months.
+export function metroExpenses(): Row[] {
+  const rows: Row[] = [];
+  const months = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"];
+  const materials = [16400, 16900, 17200, 19800, 21600, 22900];
+  months.forEach((m, i) => {
+    rows.push({ Date: `${m}-04`, Vendor: "ABC Roofing Supply", Category: "Roofing Materials", Amount: Math.round(materials[i] * 0.55) });
+    rows.push({ Date: `${m}-18`, Vendor: "Summit Shingle Distributors", Category: "Roofing Materials", Amount: Math.round(materials[i] * 0.45) });
+    rows.push({ Date: `${m}-15`, Vendor: "Payroll", Category: "Crew Labor", Amount: 21500 + (i % 2) * 400 });
+    rows.push({ Date: `${m}-10`, Vendor: "Fleet Fuel Card", Category: "Fuel & Vehicles", Amount: 2300 + (i % 3) * 120 });
+    rows.push({ Date: `${m}-22`, Vendor: "Metro Waste Hauling", Category: "Dumpsters & Disposal", Amount: 1450 + (i % 2) * 90 });
+    rows.push({ Date: `${m}-01`, Vendor: "Keystone Insurance", Category: "Insurance", Amount: 1850 });
+    rows.push({ Date: `${m}-08`, Vendor: "LocalAds Co", Category: "Marketing", Amount: 900 + (i % 3) * 60 });
+  });
+  return rows;
+}
+
+// A few new estimates for demonstrating the import-triggered scan (same columns as the updated estimates sheet).
+export function metroNewEstimates(): Row[] {
+  return [
+    { Homeowner: "Patricia Vance", "Bid Amt": 14500, "Date Quoted": "10/19/2026", "Last Call": "10/21/2026", Result: "Pending" },
+    { Homeowner: "Omar Haddad", "Bid Amt": 6200, "Date Quoted": "11/2/2026", "Last Call": "11/5/2026", Result: "Pending" },
+    { Homeowner: "Gloria Whitman", "Bid Amt": 8800, "Date Quoted": "10/23/2026", "Last Call": "10/26/2026", Result: "Waiting on HO" },
+  ];
+}

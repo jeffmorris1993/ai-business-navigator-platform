@@ -20,7 +20,10 @@ export const SPONSORS = [
 type SampleSlug = "metro-roofing" | "brightpath-consulting" | "freshstart-cleaning" | "beauty-lounge" | "neighborhood-kitchen";
 
 const BUSINESSES: Record<SampleSlug, Record<string, unknown>> = {
-  "metro-roofing": { name: "Metro Roofing", industry: null, data_path: "spreadsheet", onboarded: false },
+  "metro-roofing": {
+    name: "Metro Roofing", industry: "Roofing and construction", sales_tracking: "Excel spreadsheets", invoicing: "QuickBooks",
+    biggest_challenge: "Following up with customers", ai_experience: "Beginner", main_goal: "Increase sales without hiring another administrator", data_path: "spreadsheet", onboarded: true,
+  },
   "brightpath-consulting": {
     name: "BrightPath Consulting", industry: "Professional services consulting", sales_tracking: "Google Sheets", invoicing: "FreshBooks",
     biggest_challenge: "Proposals go quiet after we send them", ai_experience: "Some experience", main_goal: "Close more proposals and get paid faster", data_path: "spreadsheet", onboarded: true,
@@ -40,6 +43,7 @@ const BUSINESSES: Record<SampleSlug, Record<string, unknown>> = {
 };
 
 const ANSWERS: Partial<Record<SampleSlug, Record<string, unknown>>> = {
+  "metro-roofing": { lead_sources: "Phone calls and website form", estimate_process: "Owner measures the roof and writes the bid in Excel", followup_tracking: "Last Call column in the estimates sheet", manual_tasks: "Calling back homeowners, chasing invoices", records_maintainer: "Owner", reviewer: "Owner", update_frequency: "Weekly", staff_tool_comfort: "medium", customer_permission: "yes", human_approval: "yes", financial_access: "Owner and bookkeeper", systems: ["spreadsheets", "accounting", "email"] },
   "brightpath-consulting": { lead_sources: "Referrals and LinkedIn", followup_tracking: "Last Email column in the proposal sheet", records_maintainer: "Office manager", reviewer: "Managing partner", update_frequency: "Weekly", customer_permission: "yes", human_approval: "yes", financial_access: "Partners and bookkeeper", systems: ["spreadsheets", "email", "accounting"], staff_tool_comfort: "high" },
   "freshstart-cleaning": { records_maintainer: "Owner", reviewer: "Owner", update_frequency: "Monthly", customer_permission: "yes", human_approval: "yes", financial_access: "Owner and bookkeeper", systems: ["accounting", "email"], staff_tool_comfort: "medium" },
   "beauty-lounge": { lead_sources: "Walk-ins and Instagram", followup_tracking: "Not tracked", records_maintainer: "Front desk", reviewer: "Owner", update_frequency: "Weekly totals on Sunday", systems: ["paper", "appointments"], staff_tool_comfort: "low", customer_permission: "unsure" },
@@ -58,7 +62,7 @@ async function load(businessId: string, filename: string, rows: Record<string, u
 }
 
 async function clearBusinessData(businessId: string) {
-  const tables = ["agent_steps", "agent_runs", "conversations", "pending_actions", "drafts", "tasks", "capability_status", "readiness_assessments", "payments", "invoices", "sales_opportunities", "expenses", "appointments", "manual_weekly_entries", "cash_positions", "column_mappings", "events", "business_profile_answers"];
+  const tables = ["agent_steps", "pending_actions", "drafts", "tasks", "findings", "agent_runs", "intelligence_scans", "conversations", "capability_status", "readiness_assessments", "payments", "invoices", "sales_opportunities", "expenses", "appointments", "manual_weekly_entries", "cash_positions", "column_mappings", "events", "business_profile_answers"];
   for (const t of tables) await db().from(t).delete().eq("business_id", businessId);
   const files = await db().storage.from("source-files").list(businessId, { limit: 1000 });
   if (files.data?.length) await db().storage.from("source-files").remove(files.data.map((f) => `${businessId}/${f.name}`));
@@ -69,7 +73,10 @@ async function populate(slug: SampleSlug, businessId: string) {
   if (ANSWERS[slug]) await saveAnswers(businessId, ANSWERS[slug]!);
   switch (slug) {
     case "metro-roofing":
-      return; // Metro starts empty: the demo walks through onboarding and upload.
+      await load(businessId, "metro-roofing-estimates-updated.csv", S.metroEstimates(true), "sales_opportunity");
+      await load(businessId, "metro-roofing-invoices.csv", S.metroInvoices(), "invoice");
+      await load(businessId, "metro-roofing-expenses.csv", S.metroExpenses(), "expense");
+      break;
     case "brightpath-consulting":
       await load(businessId, "brightpath-proposals.csv", S.brightpathProposals(), "sales_opportunity", { Closed: "won" });
       await load(businessId, "brightpath-invoices.csv", S.brightpathInvoices(), "invoice");
@@ -90,12 +97,21 @@ async function populate(slug: SampleSlug, businessId: string) {
   await runAssessment(businessId, "Sample data loaded");
 }
 
-export async function resetSampleBusiness(slug: SampleSlug) {
-  const b = (await db().from("businesses").select("id").eq("slug", slug).single()).data;
+/**
+ * Reset one fictional sample business to its baseline. Only touches that business (is_sample) — never real data.
+ * scratch=true (Metro only) restores the blank onboarding state for the original readiness walkthrough.
+ */
+export async function resetSampleBusiness(slug: SampleSlug, opts: { scratch?: boolean } = {}) {
+  const b = (await db().from("businesses").select("id,is_sample").eq("slug", slug).single()).data;
   if (!b) throw new Error(`Unknown sample business ${slug}`);
+  if (!b.is_sample) throw new Error("Only fictional sample businesses can be reset.");
   await clearBusinessData(b.id);
-  const fields = { industry: null, sales_tracking: null, invoicing: null, biggest_challenge: null, ai_experience: null, main_goal: null, ...BUSINESSES[slug] };
-  await db().from("businesses").update(fields).eq("id", b.id);
+  const blank = { industry: null, sales_tracking: null, invoicing: null, biggest_challenge: null, ai_experience: null, main_goal: null };
+  if (opts.scratch && slug === "metro-roofing") {
+    await db().from("businesses").update({ ...blank, name: "Metro Roofing", data_path: "spreadsheet", onboarded: false }).eq("id", b.id);
+    return b.id as string;
+  }
+  await db().from("businesses").update({ ...blank, ...BUSINESSES[slug] }).eq("id", b.id);
   await populate(slug, b.id);
   return b.id as string;
 }

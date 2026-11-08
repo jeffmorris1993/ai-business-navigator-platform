@@ -49,6 +49,7 @@ export interface LoopDeps {
   maxIterations?: number;
   toolTimeoutMs?: number;
   onStep?: (s: StepRecord) => Promise<void> | void;
+  deadlineMs?: number; // stop starting new model calls after this budget
   createPending: (tool: ToolDef, input: unknown) => Promise<PendingApproval>;
 }
 
@@ -95,7 +96,7 @@ export async function executeTool(
     return { ok: true, result: { summary: `Waiting for your approval: ${pending.summary}`, data: { requires_approval: true, pending_action_id: pending.id, message: "The owner must approve this in the app before it happens. Tell them it is waiting for approval." } }, pending, input: parsed.data };
   }
   try {
-    const result = await withTimeout(tool.run(ctx, parsed.data), deps.toolTimeoutMs ?? 25_000, name);
+    const result = await withTimeout(tool.run(ctx, parsed.data), tool.timeoutMs ?? deps.toolTimeoutMs ?? 25_000, name);
     return { ok: true, result, input: parsed.data };
   } catch (e) {
     return { ok: false, result: null, error: e instanceof Error ? e.message : "Tool failed", input: parsed.data };
@@ -121,8 +122,10 @@ export async function runAgentLoop(deps: LoopDeps) {
     await deps.onStep?.(full);
   };
   const max = deps.maxIterations ?? 8;
+  const deadline = deps.deadlineMs ? Date.now() + deps.deadlineMs : null;
 
   for (let iter = 0; iter < max; iter++) {
+    if (deadline && Date.now() > deadline) break;
     const t0 = Date.now();
     const res = await model.complete(messages, specs);
     await record({ kind: "model_call", output_summary: res.tool_calls.length ? `AI chose ${res.tool_calls.map((c) => c.function.name).join(", ")}` : "AI wrote the answer", ok: true, duration_ms: Date.now() - t0 });
@@ -130,9 +133,11 @@ export async function runAgentLoop(deps: LoopDeps) {
       return { answer: res.content ?? "", steps, pending, links: [...links].map(([href, label]) => ({ href, label })), toolResults, iterations: iter + 1, stoppedEarly: false };
     }
     messages.push({ role: "assistant", content: res.content, tool_calls: res.tool_calls });
-    for (const call of res.tool_calls) {
-      const t1 = Date.now();
-      const out = await executeTool(tools, ctx, call.function.name, call.function.arguments, deps);
+    // Run this turn's tool calls concurrently (e.g. several specialists at once), then record them in order.
+    const started = Date.now();
+    const outs = await Promise.all(res.tool_calls.map(async (call) => ({ call, out: await executeTool(tools, ctx, call.function.name, call.function.arguments, deps), ms: Date.now() - started })));
+    for (const { call, out, ms } of outs) {
+      const t1 = Date.now() - ms;
       if (out.pending) pending.push(out.pending);
       out.result?.links?.forEach((l) => links.set(l.href, l.label));
       if (out.result) toolResults.push({ tool: call.function.name, data: out.result.data });
@@ -151,7 +156,7 @@ export async function runAgentLoop(deps: LoopDeps) {
     }
   }
   return {
-    answer: "I stopped after reaching my step limit before finishing. Here's what I completed so far; try asking a narrower question.",
+    answer: deadline && Date.now() > deadline ? "I reached my time budget before finishing. The work recorded above was saved." : "I stopped after reaching my step limit before finishing. Here's what I completed so far; try asking a narrower question.",
     steps, pending, links: [...links].map(([href, label]) => ({ href, label })), toolResults, iterations: max, stoppedEarly: true,
   };
 }
