@@ -14,8 +14,11 @@ const COOKIE = "sirrom_session";
 
 function secret() {
   const s = process.env.SESSION_SECRET;
-  if (!s || s.length < 16) throw new Error("SESSION_SECRET is not configured.");
-  return s;
+  if (s && s.length >= 16) return s;
+  // Fallback: derive a separate signing key from the (secret) service-role key so deployments need one less variable.
+  const srk = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!srk) throw new Error("SESSION_SECRET is not configured.");
+  return createHmac("sha256", srk).update("sirrom-session-cookie-v1").digest("hex");
 }
 
 export function sign(session: Session): string {
