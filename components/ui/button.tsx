@@ -4,18 +4,19 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.98]",
+  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cobalt/40 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-3.5 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-brand-600 text-white shadow-sm hover:bg-brand-700",
-        secondary: "bg-white text-ink border border-slate-200 shadow-sm hover:bg-slate-50",
-        ghost: "text-slate-700 hover:bg-slate-100",
-        success: "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700",
-        danger: "bg-white text-rose-700 border border-rose-200 hover:bg-rose-50",
-        link: "text-brand-600 underline-offset-4 hover:underline px-0",
+        default: "bg-cobalt text-white shadow-[inset_0_-1px_0_rgba(0,0,0,0.12)] hover:bg-cobalt-700",
+        dark: "bg-ink text-white hover:bg-ink-2",
+        secondary: "border border-line-strong bg-surface text-ink shadow-card hover:bg-subtle",
+        ghost: "text-ink-2 hover:bg-subtle hover:text-ink",
+        success: "bg-teal text-white hover:bg-teal-700",
+        danger: "border border-red/30 bg-surface text-red-700 hover:bg-red-50",
+        link: "px-0 text-cobalt underline-offset-4 hover:underline",
       },
-      size: { default: "h-9 px-4", sm: "h-8 px-3 text-xs", lg: "h-11 px-6 text-base", icon: "h-9 w-9" },
+      size: { default: "h-8 px-3", sm: "h-7 px-2.5 text-xs", lg: "h-10 px-4 text-sm", icon: "h-8 w-8" },
     },
     defaultVariants: { variant: "default", size: "default" },
   },

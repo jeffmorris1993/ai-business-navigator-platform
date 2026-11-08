@@ -10,6 +10,7 @@ import { samplesFor } from "@/lib/samples/catalog";
 import { PageHeader, Stat, StatusPill } from "@/components/app/status";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AgentChat } from "@/components/app/agent-chat";
+import { AreaIntelligence } from "@/components/app/area-intelligence";
 import { OverdueTable } from "@/components/app/overdue-table";
 import { AgingChart, ExpenseChart } from "@/components/app/charts";
 import { Importer } from "@/components/app/importer";
@@ -35,6 +36,8 @@ export default async function FinancePage() {
       <PageHeader title="Financial Intelligence" description="Invoices, payments and expenses, analyzed with exact calculations. The Financial Agent explains results and suggests actions; it is not a licensed financial professional.">
         <div className="flex flex-wrap gap-1.5"><StatusPill status={st.overdue.status} /><StatusPill status={st.expenses.status} /></div>
       </PageHeader>
+
+      <AreaIntelligence businessId={businessId} agent="finance" kind="payment_reminder" />
 
       {balances && (
         <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

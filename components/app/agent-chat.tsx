@@ -106,8 +106,8 @@ export function AgentChat({ agent, suggestions = [], liveAi, autoQuestion, compa
       )}
       {turns.map((t, i) => (
         <div key={i} className="space-y-3 animate-fade-in">
-          <div className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-sm bg-brand-600 px-4 py-2 text-sm text-white">{t.question}</div>
-          <div className="rounded-2xl rounded-bl-sm border border-slate-200 bg-white p-4">
+          <div className="ml-auto w-fit max-w-[85%] rounded-lg rounded-br-sm bg-ink px-4 py-2 text-sm text-white">{t.question}</div>
+          <div className="rounded-lg rounded-bl-sm border border-line bg-surface p-4 shadow-card">
             <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-500">
               <Sparkles className="size-3.5 text-brand-500" /> {AGENT_LABEL[agent]}
               {t.model && <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-500">live model: {t.model}</span>}

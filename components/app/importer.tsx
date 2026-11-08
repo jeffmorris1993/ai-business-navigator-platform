@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/client";
+import { toast } from "sonner";
 import { RECORD_TYPES, type RecordType } from "@/lib/import/schemas";
 import { validateMapping } from "@/lib/import/normalize";
 import type { MappingSuggestion } from "@/lib/import/types";
 import { ChangeList, type Change } from "./change-list";
+import { useScanStream, ScanConsole } from "./scan-console";
 
 interface Staged {
   stagingPath: string; filename: string; headers: string[]; sampleRows: Record<string, unknown>[]; rowCount: number; truncated: boolean;
@@ -33,6 +35,8 @@ export function Importer({ samples = [], defaultMode, onDone, compact }: { sampl
   const [result, setResult] = useState<CommitResult | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const scan = useScanStream();
+  const [skipped, setSkipped] = useState<string | null>(null);
 
   async function upload(file: File) {
     setBusy("Reading your file and suggesting how the columns match...");
@@ -71,16 +75,31 @@ export function Importer({ samples = [], defaultMode, onDone, compact }: { sampl
   async function commit() {
     if (!staged) return;
     setBusy("Checking every row, saving your records and re-running readiness checks...");
+    setSkipped(null);
     try {
-      const r = await api<CommitResult>("/api/import/commit", { stagingPath: staged.stagingPath, filename: staged.filename, mapping: { recordType: type, columns, statusMap }, mode });
-      setResult(r);
-      if (r.ok) {
-        setStaged(null);
-        onDone?.(r);
-        router.refresh();
+      const res = await fetch("/api/import/commit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ stagingPath: staged.stagingPath, filename: staged.filename, mapping: { recordType: type, columns, statusMap }, mode }) });
+      if ((res.headers.get("content-type") ?? "").includes("application/json")) {
+        const j = await res.json();
+        if (!res.ok) { toast.error(j.error ?? "Import failed"); return; }
+        setResult(j as CommitResult);
+        return;
       }
+      // Stream: import result first, then the automatically started intelligence scan.
+      let imported: CommitResult | null = null;
+      await scan.consume(res, (ev) => {
+        if (ev.type === "import") {
+          imported = ev.result as CommitResult;
+          setResult(imported);
+          setStaged(null);
+          setBusy(null);
+          onDone?.(imported);
+          router.refresh();
+        }
+        if (ev.type === "scan_skipped") setSkipped(String(ev.reason));
+      });
+      router.refresh();
     } catch {
-      /* toast */
+      toast.error("Import failed. Please try again.");
     } finally {
       setBusy(null);
     }
@@ -108,7 +127,14 @@ export function Importer({ samples = [], defaultMode, onDone, compact }: { sampl
             <ul className="mt-2 space-y-1 text-xs text-slate-600">{result.issues.slice(0, 20).map((i, n) => <li key={n}>Row {i.row}, {i.field}: &quot;{i.value}&quot; — {i.problem}</li>)}</ul>
           </details>
         )}
-        <Button variant="secondary" size="sm" onClick={() => setResult(null)}>Import another file</Button>
+        {(scan.state.running || scan.state.done || scan.state.error) && (
+          <div>
+            <div className="mt-2 text-[13px] font-medium text-ink">Your agents started investigating this import automatically</div>
+            <ScanConsole state={scan.state} />
+          </div>
+        )}
+        {skipped && <div className="rounded-md bg-subtle px-3 py-2 text-[13px] text-ink-2">{skipped}</div>}
+        <Button variant="secondary" size="sm" onClick={() => { setResult(null); scan.reset(); }} disabled={scan.state.running}>Import another file</Button>
       </div>
     );
   }

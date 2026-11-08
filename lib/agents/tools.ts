@@ -198,6 +198,7 @@ export const TOOLS: ToolDef[] = [
     input: z.object({ opportunity_id: z.string().uuid(), finding_id: z.string().uuid().optional().describe("The finding this draft addresses") }),
     agents: ["sales", "advisor"],
     async run(ctx, { opportunity_id, finding_id }) {
+      if (finding_id && !(await getFinding(ctx.businessId, finding_id))) throw new Error("Unknown finding_id. Call record_finding first, then use the finding_id it returns (in a later turn).");
       const d = await actions.draftSalesFollowup(ctx.businessId, opportunity_id, finding_id);
       return { summary: `Prepared a follow-up draft (${d.written_by === "ai" ? "written by AI" : "from template"}) for review`, data: { draft_id: d.id, subject: d.subject, body: d.body, status: "draft", sent: false }, links: [{ label: "Review drafts", href: "/actions#drafts" }] };
     },
@@ -267,6 +268,7 @@ export const TOOLS: ToolDef[] = [
     input: z.object({ invoice_id: z.string().uuid(), finding_id: z.string().uuid().optional().describe("The finding this draft addresses") }),
     agents: ["finance", "advisor"],
     async run(ctx, { invoice_id, finding_id }) {
+      if (finding_id && !(await getFinding(ctx.businessId, finding_id))) throw new Error("Unknown finding_id. Call record_finding first, then use the finding_id it returns (in a later turn).");
       const d = await actions.draftPaymentReminder(ctx.businessId, invoice_id, finding_id);
       return { summary: `Prepared a payment reminder draft (${d.written_by === "ai" ? "written by AI" : "from template"}) for review`, data: { draft_id: d.id, subject: d.subject, body: d.body, status: "draft", sent: false }, links: [{ label: "Review drafts", href: "/actions#drafts" }] };
     },
@@ -297,7 +299,7 @@ export const TOOLS: ToolDef[] = [
     }),
     agents: [...ALL],
     async run(ctx, i) {
-      if (i.finding_id && !(await getFinding(ctx.businessId, i.finding_id))) throw new Error("finding_id not found");
+      if (i.finding_id && !(await getFinding(ctx.businessId, i.finding_id))) throw new Error("Unknown finding_id. Call record_finding first, then use the finding_id it returns (in a later turn).");
       const r = await actions.createTask(ctx.businessId, { ...i, source_agent: ctx.agent === "orchestrator" ? "advisor" : ctx.agent });
       return { summary: r.duplicate ? `Task already in your plan: "${i.title}"` : `Created task: "${i.title}"`, data: r, links: [{ label: "My Action Plan", href: "/actions" }] };
     },
@@ -388,7 +390,12 @@ export const TOOLS: ToolDef[] = [
       if (def.agent !== ctx.agent) throw new Error(`The ${ctx.agent} agent can't record ${i.category} findings (owned by the ${def.agent} agent).`);
       const r = await upsertFinding(ctx.businessId, { ...i, agent: ctx.agent as "readiness" | "sales" | "finance", scanId: ctx.scanId, runId: ctx.runId });
       if (!r.ok) throw new Error(r.error);
-      return { summary: `${r.outcome === "created" ? "Recorded new" : "Updated existing"} finding: ${i.title}`, data: { finding_id: r.id, outcome: r.outcome, software_computed_value: r.value, value_kind: r.value_kind, records: r.qualifyingRefs }, links: [{ label: "Intelligence Inbox", href: `/inbox?f=${r.id}` }] };
+      const draftTool = def.refType === "invoice" ? "draft_payment_reminder" : def.refType === "sales_opportunity" ? "draft_sales_followup" : null;
+      const existing = draftTool ? (await db().from("drafts").select("id", { count: "exact", head: true }).eq("business_id", ctx.businessId).eq("finding_id", r.id)).count ?? 0 : 0;
+      const next_step = draftTool && existing === 0 && ctx.inScan
+        ? `Prepare work for this finding: call ${draftTool} with finding_id="${r.id}" for the single most important ${def.refType === "invoice" ? "invoice" : "estimate"} in it (you choose which), and create_task with finding_id if the owner needs to act beyond a message.`
+        : existing > 0 ? "A draft already exists for this finding; don't duplicate it." : undefined;
+      return { summary: `${r.outcome === "created" ? "Recorded new" : "Updated existing"} finding: ${i.title}`, data: { finding_id: r.id, outcome: r.outcome, software_computed_value: r.value, value_kind: r.value_kind, records: r.qualifyingRefs, next_step }, links: [{ label: "Intelligence Inbox", href: `/inbox?f=${r.id}` }] };
     },
   }),
   def({

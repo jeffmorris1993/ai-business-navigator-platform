@@ -208,15 +208,15 @@ export function beautyLoungeWeeks() {
 export function metroExpenses(): Row[] {
   const rows: Row[] = [];
   const months = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"];
-  const materials = [16400, 16900, 17200, 19800, 21600, 22900];
+  const materials = [5400, 5600, 5700, 6600, 7200, 7650];
   months.forEach((m, i) => {
     rows.push({ Date: `${m}-04`, Vendor: "ABC Roofing Supply", Category: "Roofing Materials", Amount: Math.round(materials[i] * 0.55) });
     rows.push({ Date: `${m}-18`, Vendor: "Summit Shingle Distributors", Category: "Roofing Materials", Amount: Math.round(materials[i] * 0.45) });
-    rows.push({ Date: `${m}-15`, Vendor: "Payroll", Category: "Crew Labor", Amount: 21500 + (i % 2) * 400 });
-    rows.push({ Date: `${m}-10`, Vendor: "Fleet Fuel Card", Category: "Fuel & Vehicles", Amount: 2300 + (i % 3) * 120 });
-    rows.push({ Date: `${m}-22`, Vendor: "Metro Waste Hauling", Category: "Dumpsters & Disposal", Amount: 1450 + (i % 2) * 90 });
-    rows.push({ Date: `${m}-01`, Vendor: "Keystone Insurance", Category: "Insurance", Amount: 1850 });
-    rows.push({ Date: `${m}-08`, Vendor: "LocalAds Co", Category: "Marketing", Amount: 900 + (i % 3) * 60 });
+    rows.push({ Date: `${m}-15`, Vendor: "Payroll", Category: "Crew Labor", Amount: 6800 + (i % 2) * 150 });
+    rows.push({ Date: `${m}-10`, Vendor: "Fleet Fuel Card", Category: "Fuel & Vehicles", Amount: 780 + (i % 3) * 40 });
+    rows.push({ Date: `${m}-22`, Vendor: "Metro Waste Hauling", Category: "Dumpsters & Disposal", Amount: 480 + (i % 2) * 30 });
+    rows.push({ Date: `${m}-01`, Vendor: "Keystone Insurance", Category: "Insurance", Amount: 620 });
+    rows.push({ Date: `${m}-08`, Vendor: "LocalAds Co", Category: "Marketing", Amount: 300 + (i % 3) * 20 });
   });
   return rows;
 }

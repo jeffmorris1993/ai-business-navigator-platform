@@ -21,7 +21,7 @@ export default async function SponsorAccess() {
           ))}
         </div>
         <div className="mt-6 flex gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-600"><ShieldCheck className="size-4 shrink-0" /> Fictional sponsors. No real organization has approved, funded or endorsed this product.</div>
-        <Link href="/home" className="mt-4 block text-center text-sm text-slate-500 hover:text-slate-700">Back to business view</Link>
+        <Link href="/overview" className="mt-4 block text-center text-sm text-slate-500 hover:text-slate-700">Back to business view</Link>
       </div>
     </div>
   );

@@ -37,7 +37,7 @@ export function OnboardingForm({ initial, isMetro }: { initial: Form; isMetro: b
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-6 flex items-center gap-2.5">
-        <div className="grid size-8 place-items-center rounded-lg bg-gradient-to-br from-sky-400 to-brand-600 text-sm font-bold text-white">S</div>
+        <div className="grid size-7 place-items-center rounded-md bg-ink text-[13px] font-semibold text-white">S</div>
         <span className="font-semibold">Sirrom Business AI Navigator</span>
         <span className="ml-auto text-sm text-slate-500">Step {step} of 2</span>
       </div>

@@ -8,6 +8,7 @@ export const MIN_GROUP = 3;
 interface Row {
   business_ref: string; onboarded: boolean; industry: string | null; enrolled_at: string; ready_now: number; ready_at_start: number; assessed: boolean;
   used_sales_agent: boolean; used_finance_agent: boolean; tasks_total: number; tasks_done: number; quality_improvements: number; is_cohort_sim: boolean;
+  scans_completed: number; findings_total: number; findings_verified_resolved: number; ai_prepared_actions: number; owner_approved_actions: number;
 }
 
 function weekStart(iso: string) {
@@ -72,6 +73,14 @@ export async function sponsorMetrics(sponsorId: string, includeSimulated = true)
       salesAgentAdoption: rows.filter((r) => r.used_sales_agent).length, financeAgentAdoption: rows.filter((r) => r.used_finance_agent).length,
       capabilitiesActivated: activated, tasksTotal, tasksDone, taskCompletionRate: tasksTotal ? Math.round((tasksDone / tasksTotal) * 100) : 0,
       avgReadyAtStart: avg("ready_at_start"), avgReadyNow: avg("ready_now"), qualityImprovements: rows.reduce((a, r) => a + Number(r.quality_improvements), 0),
+    },
+    ai: {
+      businessesScanned: rows.filter((r) => Number(r.scans_completed) > 0).length,
+      scansCompleted: rows.reduce((a, r) => a + Number(r.scans_completed), 0),
+      findingsSurfaced: rows.reduce((a, r) => a + Number(r.findings_total), 0),
+      aiPreparedActions: rows.reduce((a, r) => a + Number(r.ai_prepared_actions), 0),
+      ownerApprovedActions: rows.reduce((a, r) => a + Number(r.owner_approved_actions), 0),
+      verifiedOutcomes: rows.reduce((a, r) => a + Number(r.findings_verified_resolved), 0),
     },
     funnel: [
       { stage: "Enrolled", count: n, pct: 100 },

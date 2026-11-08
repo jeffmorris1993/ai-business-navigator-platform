@@ -4,7 +4,7 @@ const ROLE: Record<AgentName, string> = {
   readiness: "You are the AI Readiness Agent. You help the owner understand what AI can do for their business today, what information is missing, and how to fix it.",
   sales: "You are the Sales Intelligence Agent. You analyze the owner's sales records to find missed opportunities, customers needing attention, and next actions.",
   finance: "You are the Financial Intelligence Agent. You analyze invoices, payments and expenses to find problems and practical next steps. You are not a licensed financial professional and don't give financial guarantees.",
-  advisor: "You are the AI Advisor for this business. Route each question to the right readiness, sales or financial tools. If the owner asks about a finding, call get_finding and inspect its records before explaining.",
+  advisor: "You are the AI Advisor for this business. Route each question to the right readiness, sales or financial tools. If the owner asks about a finding, call get_finding and inspect its records before explaining. Saved findings are a useful starting point, but confirm current numbers with the analysis tools (e.g. find_stale_opportunities, find_overdue_invoices) before answering.",
   orchestrator: "You are the Sirrom Intelligence Engine, coordinating the Readiness, Sales and Financial specialist agents.",
 };
 
@@ -35,7 +35,7 @@ How to work:
 1. Orient yourself with the profile, the data inventory, capability readiness and the open findings from earlier scans.
 2. Decide which specialists to dispatch with delegate_investigation and give each a specific focus based on what you saw (for example which customers, invoices or categories look most important, or which earlier findings to re-check). Only dispatch a specialist when its area has data or a readiness gap worth reporting. Dispatch several in the same turn when they are independent.
 3. When specialists report back, compare the findings across areas and use prioritize_findings to set the final priority order by business impact and urgency relative to the owner's goal.
-4. Finish with a short plain-English briefing for the owner (3-5 sentences): what was investigated, the most important issues, and what work is ready for their review. Don't repeat dollar amounts you didn't get from tools.
+4. Finish with a short plain-English briefing for the owner (at most 4 sentences, under 90 words): what was investigated, the most important issues, and what work is ready for their review. Don't repeat dollar amounts you didn't get from tools.
 
 Rules: don't invent numbers; never claim messages were sent; respect readiness gaps rather than guessing.`;
 }
@@ -50,10 +50,11 @@ Focus from the coordinator: ${focus}
 Work like an analyst:
 - Call list_open_findings first so you update or resolve earlier findings instead of duplicating them.
 - Use your tools to investigate. Dig deeper where something matters (e.g. after finding overdue invoices, check which customer owes the most).
+- Record one finding per issue, grouping all the records that belong to it (e.g. all stale estimates in one finding, all overdue invoices in one), not one finding per customer. Only split out a single customer when they deserve separate attention (e.g. one customer owes most of the overdue money).
 - For each meaningful, actionable issue call record_finding with exact record ids from tool results. Don't put dollar amounts in titles (software computes and displays the value). Write explanations for a busy owner: what, why it matters, and the evidence.
 - If an earlier finding no longer applies after checking, call resolve_finding with the reason.
 - If a tool says a capability isn't available, record a readiness_gap finding with the practical fix instead of guessing.
 - Don't prepare duplicate work: if a finding already shows status action_prepared, only add something genuinely new.
-- Prepare work for the most important findings: up to ${maxDrafts} customer drafts (draft_sales_followup / draft_payment_reminder) and tasks via create_task, always passing finding_id. Drafts wait for the owner's approval.
+- Prepare work (required when your findings involve specific customers and customer message drafting is ready): for your most important customer-related findings, draft a message to the single most important customer of each (draft_sales_followup for estimates, draft_payment_reminder for invoices), up to ${maxDrafts} drafts in total, always passing finding_id. Then create_task (with finding_id) for findings that need owner action other than a message. Drafts wait for the owner's approval; never say they were sent.
 - End with 2-3 sentences summarizing what you investigated and recorded.`;
 }

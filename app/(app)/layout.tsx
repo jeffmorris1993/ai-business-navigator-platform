@@ -1,55 +1,55 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ownerPage } from "@/lib/page-auth";
-import { getBusiness } from "@/lib/db/repo";
+import { getBusiness, listBusinesses } from "@/lib/db/repo";
 import { db } from "@/lib/db/client";
 import { liveAiAvailable, aiModel } from "@/lib/ai/openai";
 import { Sidebar, MobileNav } from "@/components/app/sidebar";
 import { AdvisorDrawer } from "@/components/app/advisor-drawer";
-import { DemoGuide } from "@/components/app/demo-guide";
+import { PresentationGuide } from "@/components/app/demo-guide";
 import { SwitchBusiness } from "@/components/app/switch-business";
-import { listBusinesses } from "@/lib/db/repo";
+import { DemoModeButton } from "@/components/app/demo-mode";
 
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { businessId } = await ownerPage();
-  const [business, openTasks, businesses] = await Promise.all([
+  const [business, openTasks, drafts, pending, findings, businesses] = await Promise.all([
     getBusiness(businessId),
     db().from("tasks").select("id", { count: "exact", head: true }).eq("business_id", businessId).in("status", ["open", "in_progress"]),
+    db().from("drafts").select("id", { count: "exact", head: true }).eq("business_id", businessId).eq("status", "draft"),
+    db().from("pending_actions").select("id", { count: "exact", head: true }).eq("business_id", businessId).eq("status", "pending"),
+    db().from("findings").select("id", { count: "exact", head: true }).eq("business_id", businessId).in("status", ["new", "needs_review", "action_prepared", "in_progress"]),
     listBusinesses(),
   ]);
   if (!business.onboarded) redirect("/onboarding");
   const live = liveAiAvailable();
+  const counts = { findings: findings.count ?? 0, actions: (openTasks.count ?? 0) + (drafts.count ?? 0) + (pending.count ?? 0) };
   return (
-    <div className="min-h-screen lg:pl-64">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-[#0b1530] px-4 py-5 lg:flex">
-        <Link href="/home" className="mb-6 flex items-center gap-2.5 px-2">
-          <div className="grid size-8 place-items-center rounded-lg bg-gradient-to-br from-sky-400 to-brand-600 text-sm font-bold text-white">S</div>
-          <div>
-            <div className="text-sm font-semibold leading-tight text-white">Sirrom Navigator</div>
-            <div className="text-[11px] leading-tight text-slate-400">Business AI platform</div>
+    <div className="min-h-screen lg:pl-60">
+      <Sidebar
+        counts={counts}
+        footer={
+          <div className="rounded-md border border-line bg-surface px-3 py-2.5 text-[11.5px] leading-relaxed text-ink-3">
+            <div className="mb-0.5 flex items-center gap-1.5 font-medium text-ink-2"><span className="size-1.5 rounded-full bg-amber" /> Sample data</div>
+            Fictional businesses and records for demonstration.
           </div>
-        </Link>
-        <Sidebar openTasks={openTasks.count ?? 0} />
-        <div className="mt-auto rounded-lg bg-white/5 p-3 text-[11px] leading-relaxed text-slate-400">
-          {business.is_sample && <div className="mb-1 font-medium text-amber-300">Sample Data Mode</div>}
-          All businesses and records here are fictional sample data.
-        </div>
-      </aside>
-      <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-slate-200 bg-white/85 px-4 backdrop-blur lg:px-8">
-        <SwitchBusiness current={{ id: business.id, name: business.name }} businesses={businesses.map((b) => ({ id: b.id, name: b.name, industry: b.industry }))} />
-        <div className="ml-auto flex items-center gap-2">
-          {business.is_sample && <span className="hidden rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 ring-1 ring-amber-200 sm:inline">Sample Data</span>}
-          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${live ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-600 ring-slate-200"}`} title={live ? `Model: ${aiModel()}` : "No OpenAI API key configured"}>
-            {live ? `Live AI: on` : "Live AI: unavailable"}
+        }
+      />
+      <header className="sticky top-0 z-20 flex h-12 items-center gap-2 border-b border-line bg-canvas/90 px-3 backdrop-blur sm:px-6">
+        <MobileNav counts={counts} />
+        <SwitchBusiness current={{ id: business.id, name: business.name, industry: business.industry }} businesses={businesses.map((b) => ({ id: b.id, name: b.name, industry: b.industry }))} />
+        <div className="ml-auto flex items-center gap-1.5 sm:gap-3">
+          {business.is_sample && <span className="hidden items-center gap-1.5 text-xs text-ink-3 md:inline-flex"><span className="size-1.5 rounded-full bg-amber" />Sample data</span>}
+          <span className="hidden items-center gap-1.5 text-xs text-ink-3 sm:inline-flex" title={live ? `Live model: ${aiModel()}` : "No OpenAI API key configured"}>
+            <span className={`size-1.5 rounded-full ${live ? "bg-teal" : "bg-ink-4"}`} />
+            {live ? <>AI live <span className="font-mono text-[11px] text-ink-4">{aiModel()}</span></> : "AI unavailable"}
           </span>
+          {business.is_sample && business.slug && <DemoModeButton slug={business.slug} liveAi={live} />}
         </div>
       </header>
-      <MobileNav />
-      <main className="mx-auto max-w-6xl px-4 py-8 lg:px-8">{children}</main>
+      <main className="mx-auto max-w-[1180px] px-4 py-7 sm:px-6 lg:px-8">{children}</main>
       <AdvisorDrawer liveAi={live} />
-      <DemoGuide />
+      <PresentationGuide />
     </div>
   );
 }

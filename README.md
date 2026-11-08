@@ -10,6 +10,9 @@ All businesses, sponsors and records in this repository are **fictional sample d
 
 | Capability | What it does | How it works |
 |---|---|---|
+| **Sirrom Intelligence Engine** | One click (or any import) starts an agentic investigation: an orchestrator dispatches the Readiness, Sales and Financial agents, which choose tools, record evidence-backed findings and prepare drafts/tasks | `lib/intelligence/scan.ts`, `app/api/intelligence/scan` (streams live activity); findings verified and valued by software in `lib/intelligence/evaluate.ts` |
+| **Intelligence Inbox** | Persistent findings with priority, agent, software-computed value, evidence, source records, linked work and history; never duplicated; auto-resolved when records change | `findings` table, `lib/intelligence/findings.ts`, `/inbox` |
+| **Agent Activity** | Every scan and run: trigger, agents, assignments, AI decisions vs. software tool runs, results | `/activity` |
 | **AI Readiness Agent** | Checks readiness per capability (8 capabilities, 4 statuses), shows evidence and missing items, offers "Fix This Now", re-checks automatically, keeps history | Deterministic rules in `lib/readiness/rules.ts`; history in `readiness_assessments` / `capability_status`; the AI explains but never overrides |
 | **Smart Data Importer** | CSV/XLSX upload → AI-suggested column mapping → owner confirms → normalized records with source row references; asks about ambiguous statuses; saves mappings | `lib/import/*`; OpenAI structured output for interpretation, code for validation; rule-based fallback when live AI is off (labeled) |
 | **Sales Intelligence Agent** | Pipeline, missed follow-ups, stalled proposals, trends, appointment capacity, follow-up drafts, tasks | `lib/calc/sales.ts` + tools in `lib/agents/tools.ts` |
@@ -18,11 +21,11 @@ All businesses, sponsors and records in this repository are **fictional sample d
 | **Action Center** | Tasks from all agents (priority, explanation, records, assignee, status, completion date, dismissal reason), draft review/edit/approve/export, approvals for sensitive agent actions | `app/(app)/actions` |
 | **Manual path** | Weekly totals for paper-based businesses (salon) with capacity analysis and no invented customers | `manual_weekly_entries` |
 | **Sponsor Dashboard** | Aggregate enrollment, readiness, activation, adoption, action completion; counts only; multi-sponsor | `lib/services/sponsor.ts`, view `sponsor_business_progress` |
-| **5-minute demo** | Guided presenter that drives the real screens for Metro Roofing, then the sponsor view | `/demo` + floating guide |
+| **Demo Mode** | Reset, run scan, show activity, review findings/actions, apply a sample change (payment / contact), follow-up scan, 7-scene presentation guide | header control on sample businesses; `app/api/demo/*` |
 
 ### The demo businesses (fictional)
 
-- **Metro Roofing** – starts empty. Upload estimates without contact dates → pipeline Ready, follow-up Needs Setup → upload the updated sheet → follow-up Ready → 11 open estimates, **$62,000 potential pipeline value** → invoices: 5 overdue, $31,700.
+- **Metro Roofing** – primary demo. Baseline has 40 estimates (with contact dates), 12 invoices (5 overdue, $31,700) and 6 months of expenses (roofing materials up ~28%), no cash on hand (a real readiness gap). The agents discover the issues themselves. "Start from scratch" restores the original onboarding walkthrough (upload → missing contact dates → fix).
 - **BrightPath Consulting** – different column names (Organization, Proposal Fee, Submitted, Last Email, Stage), ambiguous "Closed" stage, 6 overdue invoices totaling **$9,200**.
 - **FreshStart Cleaning** – invoices with Total Amount vs Amount Due, payments, expenses, cash on hand → cash scenarios.
 - **The Beauty Lounge** – paper appointment book, weekly numbers only → unused capacity.
@@ -63,7 +66,7 @@ npm run seed
 npm run dev
 ```
 
-Open http://localhost:3000 and choose **Start the 5-minute demo**.
+Open http://localhost:3000, choose **Open the Metro Roofing demo**, then use **Demo Mode → Run AI Intelligence Scan**.
 
 ### Modes
 
@@ -78,7 +81,7 @@ Open http://localhost:3000 and choose **Start the 5-minute demo**.
 npm test
 ```
 
-45 unit tests cover dates/money parsing, the $62,000 / 11-estimate case, $9,200 and $31,700 overdue totals (balance, not total), payments reducing balances, expense trends, cash-forecast refusal, every readiness rule including before/after transitions and stale data, roofing vs consulting header normalization, ambiguous status handling, Total≠Amount Due, and the agent loop (tool choice, permissions, approvals, invalid args, tool errors, iteration cap, memory) using a scripted fake model.
+55 unit tests cover dates/money parsing, the $62,000 / 11-estimate case, $9,200 and $31,700 overdue totals (balance, not total), payments reducing balances, expense trends, cash-forecast refusal, every readiness rule including before/after transitions and stale data, roofing vs consulting header normalization, ambiguous status handling, Total≠Amount Due, and the agent loop (tool choice, permissions, approvals, invalid args, tool errors, iteration cap, memory) using a scripted fake model.
 
 End-to-end checks against a running, seeded server (uses Playwright):
 
@@ -90,7 +93,11 @@ BASE_URL=http://localhost:3000 npx tsx e2e/demo-flow.ts
 BASE_URL=http://localhost:3000 NO_KEY_URL=http://localhost:3002 npx tsx e2e/acceptance.ts
 ```
 
-`demo-flow.ts` clicks through all five demo minutes in a browser. `acceptance.ts` covers acceptance tests 2–9 (start a second server with `OPENAI_API_KEY=` on port 3002 for test 9).
+```bash
+BASE_URL=http://localhost:3000 NO_KEY_URL=http://localhost:3002 npx tsx e2e/intelligence-flow.ts
+```
+
+`intelligence-flow.ts` covers the proactive engine (scan, persistence, prepared work, no duplicates, payment → re-verification → follow-up scan, import trigger, readiness gating, reset, honest no-key mode). `demo-flow.ts` clicks through the original readiness walkthrough. `acceptance.ts` covers acceptance tests 2–9 (start a second server with `OPENAI_API_KEY=` on port 3002 for test 9).
 
 ## Architecture
 

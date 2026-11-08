@@ -34,9 +34,17 @@ export function ReadinessView(p: Omit<FixProps, "fix" | "onClose"> & {
   const router = useRouter();
   const current = p.report?.current ?? [];
   const ready = current.filter((c) => c.status === "ready");
+  const rankS = { partial: 0, needs_setup: 1, not_assessed: 2, ready: 3 } as const;
+  const best = [...current].filter((c) => c.status !== "ready" && c.fixAction && c.nextStep && !(c.status === "not_assessed" && !mightHelpKeys(p.initialAlways).has(c.capability)))
+    .sort((a, b) => Number(mightHelpKeys(p.initialAlways).has(b.capability)) - Number(mightHelpKeys(p.initialAlways).has(a.capability)) || rankS[a.status] - rankS[b.status])[0];
   const newly = ready.filter((c) => !p.report?.readyAtStart.includes(c.capability));
   const label = (k: string) => p.capabilities.find((c) => c.key === k)?.label ?? k;
   const mightHelp = new Set(p.initialAlways.mightHelp.map((m) => m.capability));
+  const GROUPS = [
+    { title: "Ready to use", hint: "verified from your records", statuses: ["ready"] },
+    { title: "One step away", hint: "some analysis works; one fix unlocks the rest", statuses: ["partial"] },
+    { title: "Needs setup", hint: "information or answers are missing", statuses: ["needs_setup", "not_assessed"] },
+  ];
   const sorted = [...current].sort((a, b) => Number(mightHelp.has(b.capability)) - Number(mightHelp.has(a.capability)));
 
   return (
@@ -74,8 +82,24 @@ export function ReadinessView(p: Omit<FixProps, "fix" | "onClose"> & {
       </div>
       {recheck && <ChangeList changes={recheck} title="Recheck complete" />}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        {sorted.map((c) => {
+      {best && (
+        <div className="flex flex-col gap-3 rounded-lg border border-cobalt/25 bg-cobalt-50/50 px-5 py-4 sm:flex-row sm:items-center">
+          <div className="flex-1">
+            <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-cobalt-700">Most valuable next step</div>
+            <div className="mt-0.5 text-[14px] font-medium text-ink">{best.nextStep}</div>
+            <div className="text-[12.5px] text-ink-3">Unlocks {label(best.capability)}{mightHelp.has(best.capability) ? ", which matches your goal" : ""}.</div>
+          </div>
+          {best.fixAction && <Button onClick={() => setFix(best)}><Wrench /> Fix This Now</Button>}
+        </div>
+      )}
+      {GROUPS.map((g) => {
+        const items = sorted.filter((c) => g.statuses.includes(c.status));
+        if (!items.length) return null;
+        return (
+          <section key={g.title}>
+            <div className="mb-3 flex items-baseline gap-2"><h2 className="text-[13px] font-semibold uppercase tracking-[0.06em] text-ink-3">{g.title}</h2><span className="tnum text-xs text-ink-4">{items.length}</span><span className="text-[12.5px] text-ink-4">· {g.hint}</span></div>
+            <div className="grid gap-4 lg:grid-cols-2">
+        {items.map((c) => {
           const meta = p.capabilities.find((x) => x.key === c.capability)!;
           const isNew = newly.some((n) => n.capability === c.capability);
           return (
@@ -118,7 +142,10 @@ export function ReadinessView(p: Omit<FixProps, "fix" | "onClose"> & {
             </Card>
           );
         })}
-      </div>
+            </div>
+          </section>
+        );
+      })}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
@@ -180,6 +207,10 @@ export function ReadinessView(p: Omit<FixProps, "fix" | "onClose"> & {
   );
 }
 
+function mightHelpKeys(r: InitialReport) {
+  return new Set(r.mightHelp.map((m) => m.capability));
+}
+
 function InitialCard({ r, name, onUpload, manualHref }: { r: InitialReport; name: string; onUpload: () => void; manualHref: string }) {
   const cols = [
     { Icon: ClipboardList, title: "What you already have", items: r.has, tone: "text-emerald-600" },
@@ -189,10 +220,10 @@ function InitialCard({ r, name, onUpload, manualHref }: { r: InitialReport; name
   const manual = r.next.startsWith("Enter");
   return (
     <Card className="overflow-hidden border-brand-200 animate-fade-in">
-      <div className="bg-gradient-to-r from-brand-600 to-sky-500 px-5 py-4 text-white">
-        <div className="text-xs font-semibold uppercase tracking-wide text-sky-100">Initial AI readiness report</div>
-        <div className="mt-0.5 text-lg font-semibold">Here&apos;s what I can tell about {name} so far</div>
-        <p className="mt-1 text-sm text-sky-50">This is based only on your answers. I haven&apos;t seen your records yet, so I&apos;m not marking anything as ready.</p>
+      <div className="border-b border-line bg-subtle px-5 py-4">
+        <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-4">Initial AI readiness report</div>
+        <div className="mt-0.5 text-lg font-semibold text-ink">Here&apos;s what I can tell about {name} so far</div>
+        <p className="mt-1 text-sm text-ink-3">This is based only on your answers. I haven&apos;t seen your records yet, so I&apos;m not marking anything as ready.</p>
       </div>
       <div className="grid gap-5 p-5 md:grid-cols-3">
         {cols.map(({ Icon, title, items, tone }) => (

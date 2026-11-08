@@ -184,5 +184,5 @@ async function scanCounts(businessId: string, scanId: string, startedAt: string,
 export async function latestScan(businessId: string) {
   await sweepStaleScans(businessId);
   const r = await db().from("intelligence_scans").select("*").eq("business_id", businessId).order("started_at", { ascending: false }).limit(1).maybeSingle();
-  return r.data as (ScanSummary & { trigger: string; mode: string; started_at: string; finished_at: string | null; error: string | null; model: string | null; status: string }) | null;
+  return r.data as (Omit<ScanSummary, "status"> & { trigger: string; mode: string; started_at: string; finished_at: string | null; error: string | null; model: string | null; status: string }) | null;
 }

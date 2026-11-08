@@ -1,28 +1,41 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Sparkles, X } from "lucide-react";
+import { MessageSquareText, X } from "lucide-react";
 import { AgentChat } from "./agent-chat";
 
+/** Secondary, contextual assistant. Opens from the corner button or via a "sirrom:ask" event (e.g. Ask about this finding). */
 export function AdvisorDrawer({ liveAi }: { liveAi: boolean }) {
   const [open, setOpen] = useState(false);
+  const [question, setQuestion] = useState<{ q: string; n: number } | null>(null);
   const path = usePathname();
+  useEffect(() => {
+    const h = (e: Event) => {
+      setQuestion({ q: String((e as CustomEvent).detail), n: Date.now() });
+      setOpen(true);
+    };
+    window.addEventListener("sirrom:ask", h);
+    return () => window.removeEventListener("sirrom:ask", h);
+  }, []);
   if (path.startsWith("/advisor")) return null;
   return (
     <>
-      <button onClick={() => setOpen(true)} className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-brand-600 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-brand-600/30 transition hover:bg-brand-700 hover:shadow-xl">
-        <Sparkles className="size-4" /> Ask AI Advisor
-      </button>
+      {!open && (
+        <button onClick={() => setOpen(true)} className="fixed bottom-4 right-4 z-30 flex items-center gap-2 rounded-md border border-line-strong bg-surface px-3 py-2 text-[13px] font-medium text-ink shadow-pop hover:bg-subtle">
+          <MessageSquareText className="size-4 text-cobalt" /> Ask the Advisor
+        </button>
+      )}
       {open && (
-        <div className="fixed inset-0 z-40 flex justify-end bg-slate-900/20" onClick={() => setOpen(false)}>
-          <div className="flex h-full w-full max-w-md flex-col bg-[#f6f7fb] shadow-2xl animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
-              <div className="flex items-center gap-2 font-semibold"><Sparkles className="size-4 text-brand-500" /> AI Advisor</div>
-              <button onClick={() => setOpen(false)} className="rounded p-1 text-slate-400 hover:bg-slate-100" aria-label="Close"><X className="size-4" /></button>
+        <div className="fixed inset-y-0 right-0 z-40 flex w-full max-w-[26rem] flex-col border-l border-line bg-canvas shadow-pop animate-slide-in">
+          <div className="flex items-center justify-between border-b border-line bg-surface px-4 py-3">
+            <div>
+              <div className="flex items-center gap-2 text-[13px] font-semibold"><MessageSquareText className="size-4 text-cobalt" /> AI Advisor</div>
+              <div className="text-xs text-ink-3">Answers from this business&apos;s records using live tools.</div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              <AgentChat agent="advisor" liveAi={liveAi} compact suggestions={["What should I focus on this week?", "Am I ready to use the Sales Agent?", "What's preventing me from using Financial Intelligence?"]} />
-            </div>
+            <button onClick={() => setOpen(false)} className="rounded p-1 text-ink-4 hover:bg-subtle" aria-label="Close"><X className="size-4" /></button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            <AgentChat key={question?.n ?? "default"} agent="advisor" liveAi={liveAi} compact autoQuestion={question?.q} suggestions={["What should I focus on this week?", "Why is the top finding the most important?", "Which customers owe me money?"]} />
           </div>
         </div>
       )}

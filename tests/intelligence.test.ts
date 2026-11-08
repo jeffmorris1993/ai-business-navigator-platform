@@ -62,7 +62,7 @@ describe("finding evaluation (software verification)", () => {
   it("expense increase is computed by software (roofing materials)", () => {
     const e = evaluateFinding("expense_increase", [{ type: "expense_category", id: "Roofing Materials" }], null, data());
     expect(e.stillApplies).toBe(true);
-    expect(e.value).toBe(4600);
+    expect(e.value).toBe(1583.66);
   });
 
   it("readiness gaps: cash flow applies, irrelevant capacity doesn't", () => {

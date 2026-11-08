@@ -118,8 +118,13 @@ export function evaluateFinding(category: string, refs: FindingRef[], subjectIn:
       const applies = c.weeks > 0 && c.totalUnusedSlots > 0;
       return { valid: true, qualifying: [], stillApplies: applies, value: c.avgWeeklyUnusedValue, subject: "weekly_capacity", resolvedNote: applies ? undefined : "No unused capacity in recent weeks." };
     }
+    case "cash_risk": {
+      // Gate: a cash risk can only be claimed when a cash scenario is possible.
+      if (!d.cash) return invalid("Cash scenarios aren't available because cash on hand isn't known. Record a readiness_gap for cash_flow instead.");
+      return { valid: true, qualifying: refs, stillApplies: true, value: null, subject: subjectIn ?? null };
+    }
     default:
-      // cash_risk, data_quality: not auto-verifiable; the AI re-checks these on each scan.
+      // data_quality: not auto-verifiable; the AI re-checks it on each scan.
       return { valid: true, qualifying: refs, stillApplies: true, value: null, subject: subjectIn ?? null };
   }
 
@@ -133,6 +138,23 @@ export function dedupeKey(category: string, subject: string | null, refs: Findin
   if (subject) return `${category}:${norm(subject)}`;
   if (refs.length === 1) return `${category}:${refs[0].id}`;
   return `${category}:group:${refs.map((r) => r.id).sort().join(",").slice(0, 400)}`;
+}
+
+/** Categories that describe overlapping issues about the same records; they de-duplicate against each other. */
+export const FAMILIES: Record<string, string[]> = {
+  stale_opportunities: ["stale_opportunities", "stalled_proposals", "priority_opportunity"],
+  stalled_proposals: ["stale_opportunities", "stalled_proposals", "priority_opportunity"],
+  priority_opportunity: ["stale_opportunities", "stalled_proposals", "priority_opportunity"],
+};
+
+export function sharesRecords(a: FindingRef[], b: FindingRef[]) {
+  const sb = new Set(b.map((r) => r.id));
+  return a.some((r) => sb.has(r.id));
+}
+
+export function isSubset(a: FindingRef[], b: FindingRef[]) {
+  const sb = new Set(b.map((r) => r.id));
+  return a.length > 0 && a.every((r) => sb.has(r.id));
 }
 
 /** Two record-based findings describe the same issue if they share at least half of the smaller set of records. */

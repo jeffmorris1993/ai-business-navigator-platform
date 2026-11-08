@@ -11,6 +11,7 @@ import { PageHeader, Stat, StatusPill, EmptyState } from "@/components/app/statu
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AgentChat } from "@/components/app/agent-chat";
+import { AreaIntelligence } from "@/components/app/area-intelligence";
 import { StaleTable } from "@/components/app/stale-table";
 import { TrendChart, CapacityChart } from "@/components/app/charts";
 import { Wrench, TrendingUp, CalendarClock } from "lucide-react";
@@ -40,6 +41,8 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
           <StatusPill status={st.pipeline.status} /> <StatusPill status={st.followup.status} />
         </div>
       </PageHeader>
+
+      <AreaIntelligence businessId={businessId} agent="sales" kind="sales_followup" />
 
       {!pipeline && !capacity && (
         <EmptyState icon={<TrendingUp className="size-8" />} title="Sales analysis isn't available yet">

@@ -20,7 +20,7 @@ export function SignInButton({ businessId, sponsorSlug, className, children }: {
             router.push("/sponsor");
           } else {
             const r = await api<{ onboarded: boolean }>("/api/session", { role: "owner", businessId });
-            router.push(r.onboarded ? "/home" : "/onboarding");
+            router.push(r.onboarded ? "/overview" : "/onboarding");
           }
           router.refresh();
         } catch {

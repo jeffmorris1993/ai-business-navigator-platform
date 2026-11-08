@@ -47,15 +47,15 @@ async function main() {
   await page.getByText("Import complete").waitFor();
   const changes1 = await page.getByText("What changed in your AI readiness").locator("../..").innerText();
   assert.match(changes1, /Sales pipeline analysis[\s\S]*Ready/);
-  assert.match(changes1, /Missed follow-up detection[\s\S]*Needs Setup/);
+  assert.match(changes1, /Missed follow-up detection[\s\S]*Needs setup/);
   await shot(page, "2b-after-import");
   await page.keyboard.press("Escape");
-  log(`Minute 2: imported 40 estimates (${suggestedBy.trim()}); pipeline Ready, follow-up Needs Setup`);
+  log(`Minute 2: imported 40 estimates (${suggestedBy.trim()}); pipeline Ready, follow-up Needs setup`);
 
   // Minute 3: fix missing contact dates via updated spreadsheet
   await page.reload();
   const followCard = page.locator('[data-capability="missed_followup"]');
-  assert.match(await followCard.innerText(), /Needs Setup/);
+  assert.match(await followCard.innerText(), /Needs setup/);
   assert.match(await followCard.innerText(), /Last contact date missing on 18 open estimates/);
   await followCard.getByRole("button", { name: "Fix This Now" }).click();
   await page.getByText("doesn't include when you last contacted them").waitFor();
@@ -63,10 +63,10 @@ async function main() {
   await page.getByRole("button", { name: /Confirm and import 40 rows/ }).click();
   await page.getByText("Import complete").waitFor();
   const changes2 = await page.getByText("What changed in your AI readiness").locator("../..").innerText();
-  assert.match(changes2, /Missed follow-up detection[\s\S]*Needs Setup[\s\S]*Ready/);
+  assert.match(changes2, /Missed follow-up detection[\s\S]*Needs setup[\s\S]*Ready/);
   assert.match(await page.getByText(/40 existing records updated/).innerText(), /40 existing records updated/);
   await shot(page, "3-followup-ready");
-  log("Minute 3: updated sheet matched 40 records; Missed follow-up detection Needs Setup → Ready");
+  log("Minute 3: updated sheet matched 40 records; Missed follow-up detection Needs setup → Ready");
 
   // Minute 4: Sales Intelligence
   await page.getByRole("link", { name: /Analyze My Sales Opportunities/ }).first().click();
@@ -77,7 +77,7 @@ async function main() {
   if (LIVE) {
     await page.getByText("find_stale_opportunities").first().waitFor({ timeout: 120_000 });
     await page.locator("text=live model:").first().waitFor({ timeout: 120_000 });
-    const activity = await page.getByText("Agent activity").first().locator("..").innerText();
+    const activity = await page.getByText(/Agent activity · \d+ tool action/).first().locator("..").innerText();
     assert.match(activity, /11 have no contact in over 7 days/);
     await shot(page, "4a-sales-agent");
     log("Minute 4: Sales Agent called real tools (find_stale_opportunities) and answered");

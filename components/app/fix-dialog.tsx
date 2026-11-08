@@ -38,11 +38,14 @@ const TITLES: Record<string, { title: string; guide: string }> = {
 
 export function FixDialog({ fix, onClose, openMissing, unknownStatuses, answers, samples }: FixProps) {
   const [changes, setChanges] = useState<Change[] | null>(null);
-  const [summary, setSummary] = useState<string | null>(null);
+  const [summary] = useState<string | null>(null);
+  // The importer shows its own result, readiness changes and the automatic intelligence scan, so stay on it.
+  const [importChanges, setImportChanges] = useState<Change[]>([]);
   const imported = (r: { inserted?: number; updated?: number; issueCount?: number; assessment?: { changes: Change[] } }) => {
-    setSummary(`Import complete: ${r.inserted ?? 0} records added, ${r.updated ?? 0} existing records updated${r.issueCount ? `, ${r.issueCount} unreadable values left blank` : ""}.`);
-    setChanges(r.assessment?.changes ?? []);
+    setImportChanges(r.assessment?.changes ?? []);
   };
+  const importUnlockedFollowup = importChanges.some((c) => c.capability === "missed_followup" && c.to === "ready");
+  const importUnlockedOverdue = importChanges.some((c) => c.capability === "overdue_invoices" && c.to === "ready");
   const meta = TITLES[fix.fixAction!] ?? { title: "Fix this", guide: "" };
   const done = (c: Change[]) => setChanges(c);
   const unlockedFollowup = changes?.some((c) => c.capability === "missed_followup" && c.to === "ready");
@@ -83,6 +86,12 @@ export function FixDialog({ fix, onClose, openMissing, unknownStatuses, answers,
               samples={fix.fixAction === "upload_sales" ? samples.sales : fix.fixAction === "upload_expenses" ? samples.expenses : samples.invoices}
               onDone={imported}
             />
+          )}
+          {!changes && (importUnlockedFollowup || importUnlockedOverdue) && (
+            <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-line pt-4">
+              {importUnlockedFollowup && <Button asChild><Link href="/sales?analyze=1">Analyze My Sales Opportunities <ArrowRight /></Link></Button>}
+              {importUnlockedOverdue && <Button asChild><Link href="/finance">See overdue invoices <ArrowRight /></Link></Button>}
+            </div>
           )}
         </div>
       </DialogContent>

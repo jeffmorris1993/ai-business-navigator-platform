@@ -1,84 +1,89 @@
 import Link from "next/link";
-import { ArrowRight, Gauge, TrendingUp, Wallet, Building2, ShieldCheck, Compass } from "lucide-react";
+import { ArrowRight, Building2, ShieldCheck, Brain, Cpu, UserCheck } from "lucide-react";
 import { listBusinesses } from "@/lib/db/repo";
 import { db } from "@/lib/db/client";
 import { SignInButton } from "@/components/app/signin-button";
-import { liveAiAvailable } from "@/lib/ai/openai";
+import { liveAiAvailable, aiModel } from "@/lib/ai/openai";
 
 export const dynamic = "force-dynamic";
 
 export default async function Landing() {
   const [businesses, sponsors] = await Promise.all([listBusinesses(), db().from("sponsors").select("slug,name,program_name").order("created_at")]);
   const live = liveAiAvailable();
+  const metro = businesses.find((b) => b.slug === "metro-roofing");
   return (
-    <div className="min-h-screen">
-      <div className="bg-[#0b1530] text-white">
-        <div className="mx-auto max-w-6xl px-6 pb-16 pt-8">
-          <div className="flex items-center gap-2.5">
-            <div className="grid size-8 place-items-center rounded-lg bg-gradient-to-br from-sky-400 to-brand-600 text-sm font-bold">S</div>
-            <span className="font-semibold">Sirrom Business AI Navigator</span>
-            <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-slate-300">by Sirrom Studios</span>
-            <span className={`ml-auto rounded-full px-2.5 py-1 text-xs ${live ? "bg-emerald-400/15 text-emerald-300" : "bg-white/10 text-slate-300"}`}>{live ? "Live AI: on" : "Live AI: unavailable"}</span>
+    <div className="min-h-screen bg-canvas">
+      <header className="border-b border-line bg-[#fbfbfa]">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-6 py-3">
+          <span className="relative grid size-7 place-items-center rounded-md bg-ink text-[13px] font-semibold text-white">S<span className="absolute -right-0.5 -top-0.5 size-2 rounded-full border-2 border-[#fbfbfa] bg-cobalt" /></span>
+          <span className="text-[13.5px] font-semibold tracking-tight">Sirrom <span className="font-normal text-ink-3">Business AI Navigator</span></span>
+          <span className="ml-auto flex items-center gap-1.5 text-xs text-ink-3"><span className={`size-1.5 rounded-full ${live ? "bg-teal" : "bg-ink-4"}`} />{live ? <>AI live <span className="font-mono text-[11px] text-ink-4">{aiModel()}</span></> : "AI unavailable"}</span>
+        </div>
+      </header>
+
+      <section className="mx-auto grid max-w-6xl gap-12 px-6 pb-14 pt-16 lg:grid-cols-[1.1fr_1fr] lg:items-center">
+        <div className="animate-fade-in">
+          <div className="text-xs font-medium uppercase tracking-[0.1em] text-cobalt">by Sirrom Studios</div>
+          <h1 className="mt-3 text-[40px] font-semibold leading-[1.08] tracking-tight text-ink sm:text-[46px]">AI agents that investigate your business and prepare the work.</h1>
+          <p className="mt-4 max-w-xl text-[16px] leading-relaxed text-ink-3">Sirrom reviews a small business&apos;s own records, finds what needs attention in sales and finances, drafts the follow-ups, and waits for the owner&apos;s approval. Every number comes from the records; every action is visible.</p>
+          <div className="mt-7 flex flex-wrap gap-2.5">
+            {metro && (
+              <SignInButton businessId={metro.id} className="inline-flex h-10 items-center gap-2 rounded-md bg-cobalt px-4 text-sm font-medium text-white hover:bg-cobalt-700">
+                <span className="flex items-center gap-2">Open the Metro Roofing demo <ArrowRight className="size-4" /></span>
+              </SignInButton>
+            )}
+            <Link href="/start" className="inline-flex h-10 items-center gap-2 rounded-md border border-line-strong bg-surface px-4 text-sm font-medium text-ink shadow-card hover:bg-subtle">Set up a new business</Link>
           </div>
-          <div className="mt-14 max-w-3xl animate-fade-in">
-            <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">Tell us about your business. We&apos;ll help you put AI to work.</h1>
-            <p className="mt-4 text-lg text-slate-300">Understand where AI can help, get your information ready, and turn your own records into sales and financial results you can measure.</p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/demo" className="inline-flex items-center gap-2 rounded-lg bg-sky-500 px-5 py-3 font-medium hover:bg-sky-400"><Compass className="size-4" /> Start the 5-minute demo</Link>
-              <Link href="/start" className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-5 py-3 font-medium hover:bg-white/15">Set up a new business <ArrowRight className="size-4" /></Link>
-            </div>
-          </div>
-          <div className="mt-14 grid gap-4 sm:grid-cols-3">
+        </div>
+        <div className="rounded-lg border border-line bg-surface p-5 shadow-card">
+          <div className="mb-3 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-4">How an intelligence scan works</div>
+          <ol className="space-y-4">
             {[
-              { Icon: Gauge, t: "AI Readiness Agent", d: "Checks your real records, capability by capability, and helps you fix what's missing." },
-              { Icon: TrendingUp, t: "Sales Intelligence Agent", d: "Finds open estimates that need follow-up and drafts the messages for your approval." },
-              { Icon: Wallet, t: "Financial Intelligence Agent", d: "Finds overdue invoices, rising costs and cash gaps, with exact calculations." },
-            ].map(({ Icon, t, d }) => (
-              <div key={t} className="rounded-xl bg-white/5 p-5 ring-1 ring-white/10">
-                <Icon className="size-5 text-sky-300" />
-                <div className="mt-3 font-semibold">{t}</div>
-                <p className="mt-1 text-sm text-slate-400">{d}</p>
-              </div>
+              { Icon: Cpu, t: "Software reads and checks the records", d: "Pipeline values, overdue balances, contact gaps and readiness are calculated exactly. These numbers are never guessed by AI.", c: "bg-subtle text-ink-2" },
+              { Icon: Brain, t: "AI agents decide what to investigate", d: "A coordinator dispatches Readiness, Sales and Financial agents, which choose their own tools, dig deeper and record findings with evidence.", c: "bg-cobalt-50 text-cobalt" },
+              { Icon: UserCheck, t: "The owner reviews prepared work", d: "Follow-ups, payment reminders and tasks wait for approval. When records change, software re-verifies every finding.", c: "bg-teal-50 text-teal-700" },
+            ].map(({ Icon, t, d, c }, i) => (
+              <li key={t} className="flex gap-3">
+                <span className={`grid size-7 shrink-0 place-items-center rounded-md ${c}`}><Icon className="size-3.5" /></span>
+                <div><div className="text-[13.5px] font-medium"><span className="tnum mr-1.5 text-ink-4">{i + 1}</span>{t}</div><p className="mt-0.5 text-[13px] leading-relaxed text-ink-3">{d}</p></div>
+              </li>
             ))}
+          </ol>
+        </div>
+      </section>
+
+      <section className="border-t border-line bg-[#fbfbfa]">
+        <div className="mx-auto grid max-w-6xl gap-10 px-6 py-12 lg:grid-cols-[2fr_1fr]">
+          <div>
+            <h2 className="text-[13px] font-semibold uppercase tracking-[0.06em] text-ink-3">Sample businesses</h2>
+            <p className="mt-0.5 text-[13px] text-ink-3">Fictional businesses with fictional records. Everything is calculated live from their data.</p>
+            <div className="mt-4 grid gap-px overflow-hidden rounded-lg border border-line bg-line shadow-card sm:grid-cols-2">
+              {businesses.map((b) => (
+                <SignInButton key={b.id} businessId={b.id} className="group flex items-center gap-3 bg-surface px-4 py-3.5 text-left hover:bg-subtle/60">
+                  <span className="flex w-full items-center gap-3">
+                    <span className="grid size-8 place-items-center rounded-md bg-subtle text-[13px] font-semibold text-ink-2 ring-1 ring-line">{b.name.slice(0, 1)}</span>
+                    <span className="min-w-0 flex-1"><span className="block text-[13.5px] font-medium">{b.name}</span><span className="block truncate text-xs text-ink-3">{b.industry ?? "Starts at onboarding"} · {b.data_path === "manual" ? "Paper records" : "Spreadsheets"}</span></span>
+                    <ArrowRight className="size-4 text-ink-4 transition group-hover:translate-x-0.5 group-hover:text-ink-2" />
+                  </span>
+                </SignInButton>
+              ))}
+            </div>
+            <div className="mt-3 text-[12.5px] text-ink-3">Prefer the original readiness walkthrough? <Link href="/demo" className="text-cobalt hover:underline">Start Metro Roofing from scratch</Link>.</div>
+          </div>
+          <div>
+            <h2 className="text-[13px] font-semibold uppercase tracking-[0.06em] text-ink-3">Sponsor view</h2>
+            <p className="mt-0.5 text-[13px] text-ink-3">Program-level adoption and outcomes. Counts only.</p>
+            <div className="mt-4 space-y-2">
+              {(sponsors.data ?? []).map((s) => (
+                <SignInButton key={s.slug} sponsorSlug={s.slug} className="flex w-full items-start gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-left shadow-card hover:bg-subtle/60">
+                  <span className="flex gap-3"><Building2 className="mt-0.5 size-4 text-ink-3" /><span><span className="block text-[13.5px] font-medium">{s.program_name}</span><span className="block text-xs text-ink-3">{s.name}</span></span></span>
+                </SignInButton>
+              ))}
+            </div>
+            <p className="mt-4 flex gap-2 text-[12px] leading-relaxed text-ink-3"><ShieldCheck className="size-4 shrink-0" />Sponsor names are fictional. No real company has approved, funded or endorsed this prototype.</p>
           </div>
         </div>
-      </div>
-      <div className="mx-auto grid max-w-6xl gap-8 px-6 py-12 lg:grid-cols-[2fr_1fr]">
-        <div>
-          <h2 className="text-lg font-semibold">Explore a sample business</h2>
-          <p className="mt-1 text-sm text-slate-500">Fictional businesses with fictional records. Every number is calculated live from their data.</p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {businesses.map((b) => (
-              <SignInButton key={b.id} businessId={b.id} className="group rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-brand-300 hover:shadow-md">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">{b.name}</span>
-                  <ArrowRight className="size-4 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand-500" />
-                </div>
-                <div className="mt-0.5 text-sm text-slate-500">{b.industry ?? "Starts at onboarding"} · {b.data_path === "manual" ? "Paper records" : "Spreadsheets"}</div>
-              </SignInButton>
-            ))}
-          </div>
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold">Sponsor view</h2>
-          <p className="mt-1 text-sm text-slate-500">How a sponsoring organization sees program adoption. Aggregate counts only.</p>
-          <div className="mt-4 space-y-3">
-            {(sponsors.data ?? []).map((s) => (
-              <SignInButton key={s.slug} sponsorSlug={s.slug} className="flex w-full items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-brand-300 hover:shadow-md">
-                <Building2 className="mt-0.5 size-5 text-slate-400" />
-                <div>
-                  <div className="font-medium">{s.program_name}</div>
-                  <div className="text-sm text-slate-500">{s.name}</div>
-                </div>
-              </SignInButton>
-            ))}
-          </div>
-          <div className="mt-4 flex gap-2 rounded-xl bg-slate-100 p-3 text-xs text-slate-600">
-            <ShieldCheck className="size-4 shrink-0" />
-            Sponsor names are fictional. No real company has approved, funded or endorsed this prototype.
-          </div>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

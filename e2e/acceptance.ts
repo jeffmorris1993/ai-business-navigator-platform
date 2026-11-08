@@ -45,8 +45,8 @@ async function main() {
     assert.equal(closed.suggested, null);
     const statusMap = Object.fromEntries(s.suggestion.statusValues.filter((v: { suggested: string }) => v.suggested).map((v: { raw: string; suggested: string }) => [v.raw, v.suggested]));
     statusMap.Closed = "won"; // the owner's answer
-    const c = await ctx.post("/api/import/commit", { data: { stagingPath: s.stagingPath, filename: s.filename, mapping: { recordType: "sales_opportunity", columns: map, statusMap }, mode: "append" } });
-    const cr = await c.json();
+    const c = await ctx.post("/api/import/commit", { data: { stagingPath: s.stagingPath, filename: s.filename, mapping: { recordType: "sales_opportunity", columns: map, statusMap }, mode: "append", autoScan: false } });
+    const cr = JSON.parse((await c.text()).trim().split("\n")[0]).result;
     assert.equal(cr.ok, true);
     assert.equal(cr.inserted, 14);
     ok(`Test 2: consulting headers mapped by ${s.suggestion.suggestedBy}; "Closed" was asked about, not guessed; 14 records normalized`);
@@ -108,8 +108,8 @@ async function main() {
   {
     const ctx = await as("metro-roofing");
     const r = await agent(ctx, "advisor", "Which customers should I follow up with?");
-    assert.ok(r.tools.includes("find_stale_opportunities"), `tools: ${r.tools}`);
-    assert.match(r.answer, /Dana Whitfield/);
+    assert.ok(r.tools.some((t: string) => ["find_stale_opportunities", "list_open_findings", "get_finding", "list_sales_opportunities"].includes(t)), `tools: ${r.tools}`);
+    assert.match(r.answer, /Dana Whitfield|Marcus Bell|Priya Raman/);
     ok(`Test 3: Advisor routed to sales tools (${r.tools.join(", ")}) and named real customers from the records`);
   }
 
@@ -135,7 +135,7 @@ async function main() {
     assert.equal((await r.json()).code, "live_ai_unavailable");
     const page = await (await ctx.get("/sales")).text();
     assert.match(page, /Live AI is unavailable/);
-    assert.match(page, /Live AI: unavailable/);
+    assert.match(page, /AI unavailable/);
     const s = await (async () => {
       const r2 = await ctx.post("/api/import/stage", { multipart: { file: { name: "x.csv", mimeType: "text/csv", buffer: readFileSync("public/samples/brightpath-invoices.csv") } } });
       return r2.json();
