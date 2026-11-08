@@ -23,7 +23,7 @@ Verified on 2026-11-08 with live OpenAI (`gpt-5.4-mini`) against the hosted Supa
 - Smart Data Importer for sales, invoices, payments, expenses, appointments; AI mapping with code-enforced rules; status questions; append / update-matching / replace modes; saved mappings; private original files with download; source row on every record.
 - Sales: pipeline, missed follow-ups (ranked, with evidence and source), stalled proposals, trends, appointment capacity, AI or template drafts, tasks.
 - Finance: overdue invoices with aging and per-customer totals, balances, payment recording, expense trends by category, financial summary, cash scenarios, reminders, tasks.
-- Agents: 27 server-side tools with zod validation, per-agent permissions, approval gating, timeouts, iteration cap; streamed real activity; run and step logs; Advisor with conversation memory.
+- Agents: 26 server-side tools with zod validation, per-agent permissions, approval gating, timeouts, iteration cap; streamed real activity; run and step logs; Advisor with conversation memory.
 - Action Center, Sponsor Dashboard (multi-sponsor, counts only, small-group suppression), guided 5-minute demo.
 
 ## Limitations
