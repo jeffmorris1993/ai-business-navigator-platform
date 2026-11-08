@@ -4,19 +4,23 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cobalt/40 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-3.5 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[7px] text-[13.5px] font-medium tracking-[-0.005em] transition-[background,color,box-shadow,transform] duration-150 disabled:pointer-events-none disabled:opacity-45 active:translate-y-px [&_svg]:size-[15px] [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-cobalt text-white shadow-[inset_0_-1px_0_rgba(0,0,0,0.12)] hover:bg-cobalt-700",
-        dark: "bg-ink text-white hover:bg-ink-2",
-        secondary: "border border-line-strong bg-surface text-ink shadow-card hover:bg-subtle",
-        ghost: "text-ink-2 hover:bg-subtle hover:text-ink",
+        default: "bg-ink text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-midnight-3",
+        primary: "bg-cobalt text-white hover:bg-cobalt-700",
+        signal: "bg-lime text-midnight shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_6px_18px_-8px_rgba(200,240,75,0.7)] hover:bg-[#d4f56a]",
+        dark: "bg-midnight text-night hover:bg-midnight-3",
+        secondary: "border border-line-strong bg-surface text-ink shadow-card hover:border-ink-4 hover:bg-white",
+        ghost: "text-ink-2 hover:bg-ink/[0.05] hover:text-ink",
+        quiet: "text-ink-3 hover:text-ink",
+        night: "border border-midnight-line bg-midnight-2 text-night hover:bg-midnight-3",
         success: "bg-teal text-white hover:bg-teal-700",
         danger: "border border-red/30 bg-surface text-red-700 hover:bg-red-50",
-        link: "px-0 text-cobalt underline-offset-4 hover:underline",
+        link: "h-auto px-0 text-cobalt underline-offset-4 hover:underline",
       },
-      size: { default: "h-8 px-3", sm: "h-7 px-2.5 text-xs", lg: "h-10 px-4 text-sm", icon: "h-8 w-8" },
+      size: { default: "h-9 px-3.5", sm: "h-8 px-3 text-[13px]", xs: "h-7 px-2.5 text-[12.5px]", lg: "h-11 px-5 text-[14.5px]", icon: "h-9 w-9" },
     },
     defaultVariants: { variant: "default", size: "default" },
   },

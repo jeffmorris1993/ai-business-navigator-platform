@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Wordmark } from "@/components/brand/mark";
 import { useRouter } from "next/navigation";
 import { Wand2, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,14 +33,13 @@ export function OnboardingForm({ initial, preset }: { initial: Form; preset: Onb
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-6 flex items-center gap-2.5">
-        <div className="grid size-7 place-items-center rounded-md bg-ink text-[13px] font-semibold text-white">S</div>
-        <span className="font-semibold">Sirrom Business AI Navigator</span>
-        <span className="ml-auto text-sm text-slate-500">Step {step} of 2</span>
+        <Wordmark size="sm" />
+        <span className="ml-auto flex items-center gap-2 text-[13px] text-ink-3"><span className="flex gap-1">{[1, 2].map((n) => <span key={n} className={`h-1 w-6 rounded-full ${n <= step ? "bg-ink" : "bg-line-strong"}`} />)}</span>Step {step} of 2</span>
       </div>
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm animate-fade-in">
+      <div className="rounded-panel border border-line bg-surface p-6 shadow-card animate-fade-in sm:p-9">
         {step === 1 ? (
           <>
-            <h1 className="text-2xl font-semibold tracking-tight">Tell us about your business</h1>
+            <h1 className="font-display text-[30px] leading-tight tracking-[-0.015em]">Tell us about your business</h1>
             <p className="mt-1 text-sm text-slate-500">A few simple questions. No technical knowledge needed.</p>
             {preset && (
               <div className="mt-4 rounded-lg border border-cobalt/25 bg-cobalt-50/50 p-4">
@@ -82,7 +82,7 @@ export function OnboardingForm({ initial, preset }: { initial: Form; preset: Onb
           </>
         ) : (
           <>
-            <h1 className="text-2xl font-semibold tracking-tight">A few questions about how work gets done</h1>
+            <h1 className="font-display text-[30px] leading-tight tracking-[-0.015em]">A few questions about how work gets done</h1>
             <p className="mt-1 text-sm text-slate-500">Optional. These help the AI Readiness Agent recommend what will realistically work for you. Skip anything you&apos;re unsure about.</p>
             <div className="mt-6 space-y-6">
               <Section title="How your business runs">

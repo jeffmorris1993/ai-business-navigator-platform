@@ -14,8 +14,10 @@ export async function AreaIntelligence({ businessId, agent, kind }: { businessId
   const mine = sortFindings(findings.filter((f) => f.agent === agent || (f.agent === "software" && (agent === "sales" ? ["stale_opportunities", "stalled_proposals", "priority_opportunity"] : ["overdue_invoices", "customer_balance", "expense_increase"]).includes(f.category))));
   const label = agent === "sales" ? "Sales Agent" : "Financial Agent";
   return (
-    <section className="mb-9">
+    <section className="mb-12">
       <SectionHeader
+        display
+        className="border-b-0 pb-0"
         title={`What your ${label} found`}
         description={mine.length ? "From the latest intelligence scans, re-verified against your records." : undefined}
         action={(drafts.count ?? 0) > 0 ? <Link href="/actions#drafts" className="inline-flex items-center gap-1 text-[13px] font-medium text-cobalt hover:underline"><Mail className="size-3.5" />{drafts.count} prepared {kind === "sales_followup" ? "follow-up" : "reminder"}{drafts.count === 1 ? "" : "s"} <ArrowRight className="size-3.5" /></Link> : undefined}

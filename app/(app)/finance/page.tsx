@@ -7,8 +7,9 @@ import { demoToday } from "@/lib/calc/dates";
 import { formatMoney } from "@/lib/calc/money";
 import { liveAiAvailable } from "@/lib/ai/openai";
 import { samplesFor } from "@/lib/samples/catalog";
-import { PageHeader, Stat, StatusPill } from "@/components/app/status";
+import { PageHeader, Stat, StatStrip, StatusPill } from "@/components/app/status";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { AgentPanel } from "@/components/app/agent-panel";
 import { AgentChat } from "@/components/app/agent-chat";
 import { AreaIntelligence } from "@/components/app/area-intelligence";
 import { OverdueTable } from "@/components/app/overdue-table";
@@ -33,19 +34,19 @@ export default async function FinancePage() {
 
   return (
     <>
-      <PageHeader title="Financial Intelligence" description="Invoices, payments and expenses, analyzed with exact calculations. The Financial Agent explains results and suggests actions; it is not a licensed financial professional.">
-        <div className="flex flex-wrap gap-1.5"><StatusPill status={st.overdue.status} /><StatusPill status={st.expenses.status} /></div>
+      <PageHeader eyebrow="Cash & receivables" title="Financial Intelligence" description="Invoices, payments and expenses, analyzed with exact calculations. The Financial Agent explains results and suggests actions; it is not a licensed financial professional.">
+        <dl className="flex flex-wrap gap-x-5 gap-y-1 text-[12.5px]"><div className="flex items-center gap-2"><dt className="text-ink-3">Receivables</dt><dd><StatusPill status={st.overdue.status} /></dd></div><div className="flex items-center gap-2"><dt className="text-ink-3">Expenses</dt><dd><StatusPill status={st.expenses.status} /></dd></div></dl>
       </PageHeader>
 
       <AreaIntelligence businessId={businessId} agent="finance" kind="payment_reminder" />
 
       {balances && (
-        <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatStrip className="mb-12">
           <Stat label="Overdue" value={overdue ? formatMoney(overdue.total, { cents: true }) : "—"} sub={overdue ? `${overdue.count} invoices past due` : st.overdue.missing[0]} tone="red" />
           <Stat label="Total still owed to you" value={formatMoney(balances.totalOutstanding, { cents: true })} sub={`${balances.openCount} unpaid invoices`} />
           <Stat label="Not yet due" value={formatMoney(balances.notYetDueTotal, { cents: true })} sub={`${balances.notYetDueCount} invoices`} tone="green" />
           <Stat label="Oldest overdue" value={overdue?.overdue[0] ? `${overdue.overdue[0].days_overdue} days` : "—"} sub={overdue?.overdue[0]?.customer ?? ""} tone="amber" />
-        </div>
+        </StatStrip>
       )}
 
       <Card>
@@ -61,9 +62,9 @@ export default async function FinancePage() {
               <div className="space-y-5">
                 <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
                   <AgingChart buckets={overdue.byBucket} />
-                  <div className="rounded-xl bg-slate-50 p-4 text-sm">
+                  <div className="rounded-xl bg-subtle/70 p-4 text-[13.5px]">
                     <div className="mb-2 font-medium">By customer</div>
-                    <ul className="space-y-1.5">{overdue.byCustomer.slice(0, 6).map((c) => <li key={c.customer} className="flex justify-between gap-2"><span className="truncate">{c.customer}</span><span className="font-medium">{formatMoney(c.total, { cents: true })}</span></li>)}</ul>
+                    <ul className="space-y-1.5">{overdue.byCustomer.slice(0, 6).map((c) => <li key={c.customer} className="flex justify-between gap-2"><span className="truncate">{c.customer}</span><span className="tnum font-medium">{formatMoney(c.total, { cents: true })}</span></li>)}</ul>
                   </div>
                 </div>
                 <OverdueTable rows={overdue.overdue.map((o) => ({ ...o, source: o.source_file_id ? `${fileName[o.source_file_id] ?? "file"}, row ${o.source_row}` : null }))} today={today} />
@@ -79,14 +80,11 @@ export default async function FinancePage() {
         </CardContent>
       </Card>
 
-      <Card className="mt-6">
-        <CardHeader><CardTitle>Financial Agent</CardTitle><CardDescription>Ask about money owed, costs or cash. It uses the same exact calculations and shows every step.</CardDescription></CardHeader>
-        <CardContent>
+      <div className="mt-8"><AgentPanel agent="finance" title="Financial Agent" description="Ask about money owed, costs or cash. It uses the same exact calculations and shows every step.">
           <AgentChat agent="finance" liveAi={live} suggestions={["Which customers owe me money, and what should I do?", "Why are my expenses increasing?", "Give me a 60-day cash-flow forecast.", "Draft reminders for invoices more than 30 days overdue"]} />
-        </CardContent>
-      </Card>
+      </AgentPanel></div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <div className="flex items-start justify-between gap-3"><div><CardTitle>Expense trends</CardTitle><CardDescription>{expenses?.sufficient ? `Monthly average ${expenses.priorPeriod} vs ${expenses.recentPeriod}` : "Compare spending across months by category."}</CardDescription></div><StatusPill status={st.expenses.status} /></div>
@@ -94,7 +92,7 @@ export default async function FinancePage() {
           <CardContent>
             {expenses?.sufficient ? (
               <div className="space-y-4">
-                <div className="rounded-xl bg-slate-50 p-3 text-sm">Average monthly spending went from <b>{formatMoney(expenses.priorMonthlyAvg)}</b> to <b>{formatMoney(expenses.recentMonthlyAvg)}</b> ({expenses.totalChangePct! > 0 ? "+" : ""}{expenses.totalChangePct}%).</div>
+                <div className="border-l-2 border-amber pl-4 text-[14px] leading-relaxed text-ink-2">Average monthly spending went from <b>{formatMoney(expenses.priorMonthlyAvg)}</b> to <b>{formatMoney(expenses.recentMonthlyAvg)}</b> ({expenses.totalChangePct! > 0 ? "+" : ""}{expenses.totalChangePct}%).</div>
                 <ExpenseChart monthly={expenses.monthly} />
                 <table className="w-full text-sm">
                   <thead className="text-left text-xs uppercase text-slate-500"><tr><th className="py-1">Category</th><th className="py-1 text-right">Before</th><th className="py-1 text-right">Recent</th><th className="py-1 text-right">Change</th></tr></thead>
@@ -125,7 +123,7 @@ export default async function FinancePage() {
                 {cash.scenarios.map((s) => (
                   <div key={s.name} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 p-3 text-sm">
                     <span className="text-slate-700">{s.name}<span className="block text-xs text-slate-500">Receipts {formatMoney(s.receipts)}</span></span>
-                    <span className={`text-base font-semibold ${s.endingCash < 0 ? "text-rose-600" : "text-ink"}`}>{formatMoney(s.endingCash)}</span>
+                    <span className={`tnum text-[20px] font-semibold tracking-[-0.02em] ${s.endingCash < 0 ? "text-rose-600" : "text-ink"}`}>{formatMoney(s.endingCash)}</span>
                   </div>
                 ))}
                 <ul className="list-disc space-y-0.5 pl-5 text-xs text-slate-500">{cash.assumptions.map((a) => <li key={String(a)}>{a}</li>)}</ul>

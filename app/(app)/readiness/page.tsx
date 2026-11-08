@@ -24,7 +24,7 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
   const hasData = opps.length + invoices.length + expenses.length + weeks.length > 0;
   return (
     <>
-      <PageHeader title="My AI Readiness" description="What AI can do for your business right now, based on your actual records, and what to do next. Each capability is checked separately with transparent rules." />
+      <PageHeader eyebrow="Guided activation" title="My AI Readiness" description="What AI can do for your business right now, based on your actual records, and what to do next. Each capability is checked separately with transparent rules." />
       <ReadinessView
         welcome={sp.welcome === "1"}
         businessName={b.name}

@@ -11,10 +11,10 @@ export const DialogClose = D.Close;
 export function DialogContent({ className, children, wide, ...p }: D.DialogContentProps & { wide?: boolean }) {
   return (
     <D.Portal>
-      <D.Overlay className="fixed inset-0 z-40 bg-ink/30 animate-fade-in" />
+      <D.Overlay className="fixed inset-0 z-40 bg-midnight/35 animate-fade-in" />
       <D.Content
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-line bg-surface p-6 shadow-pop animate-pop",
+          "fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-panel border border-line bg-surface p-6 shadow-pop animate-pop",
           wide ? "max-w-4xl" : "max-w-lg",
           className,
         )}

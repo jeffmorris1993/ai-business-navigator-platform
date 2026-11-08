@@ -5,23 +5,31 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutGrid, Inbox, Gauge, TrendingUp, Wallet, ListChecks, Database, MessageSquareText, Building2, Activity, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Wordmark } from "@/components/brand/mark";
+import { AgentRoster, type RosterScan } from "./agent-roster";
+import { RailBusinessSwitcher, type SwitcherBusiness } from "./switch-business";
 
 export const NAV_GROUPS = [
   {
-    label: "Workspace",
+    label: "Intelligence",
     items: [
       { href: "/overview", label: "Overview", Icon: LayoutGrid },
       { href: "/inbox", label: "Intelligence Inbox", Icon: Inbox, countKey: "findings" as const },
-      { href: "/readiness", label: "AI Readiness", Icon: Gauge },
+      { href: "/activity", label: "Agent Activity", Icon: Activity },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
       { href: "/sales", label: "Sales Intelligence", Icon: TrendingUp },
       { href: "/finance", label: "Financial Intelligence", Icon: Wallet },
       { href: "/actions", label: "Action Center", Icon: ListChecks, countKey: "actions" as const },
     ],
   },
   {
-    label: "Data & AI",
+    label: "Setup",
     items: [
-      { href: "/activity", label: "Agent Activity", Icon: Activity },
+      { href: "/readiness", label: "AI Readiness", Icon: Gauge },
       { href: "/data", label: "Data & Connections", Icon: Database },
       { href: "/advisor", label: "AI Advisor", Icon: MessageSquareText },
     ],
@@ -29,58 +37,78 @@ export const NAV_GROUPS = [
   { label: "Program", items: [{ href: "/sponsor-access", label: "Sponsor Dashboard", Icon: Building2 }] },
 ];
 
-export function Logo() {
-  return (
-    <Link href="/overview" className="flex items-center gap-2.5">
-      <span className="relative grid size-7 place-items-center rounded-md bg-ink text-[13px] font-semibold text-white">
-        S<span className="absolute -right-0.5 -top-0.5 size-2 rounded-full border-2 border-[#fbfbfa] bg-cobalt" />
-      </span>
-      <span className="leading-tight">
-        <span className="block text-[13.5px] font-semibold tracking-tight text-ink">Sirrom</span>
-        <span className="block text-[11px] text-ink-3">Business AI Navigator</span>
-      </span>
-    </Link>
-  );
+export const PAGE_TITLES: Record<string, string> = Object.fromEntries(NAV_GROUPS.flatMap((g) => g.items.map((i) => [i.href, i.label])));
+
+export function Logo({ tone = "light" }: { tone?: "light" | "dark" }) {
+  return <Link href="/overview" aria-label="Sirrom home"><Wordmark tone={tone} size="sm" /></Link>;
 }
 
-function NavList({ counts, onNavigate }: { counts: { findings: number; actions: number }; onNavigate?: () => void }) {
+export interface RailProps {
+  counts: { findings: number; actions: number };
+  business: SwitcherBusiness;
+  businesses: SwitcherBusiness[];
+  isSample: boolean;
+  liveAi: boolean;
+  scan: RosterScan | null;
+}
+
+function NavList({ counts, onNavigate }: { counts: RailProps["counts"]; onNavigate?: () => void }) {
   const path = usePathname();
   return (
-    <nav className="flex flex-col gap-5">
+    <nav className="flex flex-col gap-6" aria-label="Main">
       {NAV_GROUPS.map((g) => (
         <div key={g.label}>
-          <div className="mb-1 px-2.5 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-4">{g.label}</div>
-          <div className="flex flex-col gap-px">
+          <div className="mb-1.5 px-3 font-mono text-[10.5px] uppercase tracking-[0.16em] text-night-3">{g.label}</div>
+          <ul className="flex flex-col">
             {g.items.map(({ href, label, Icon, ...rest }) => {
               const active = path === href || path.startsWith(href + "/");
               const count = "countKey" in rest && rest.countKey ? counts[rest.countKey] : 0;
               return (
-                <Link key={href} href={href} onClick={onNavigate} className={cn("relative flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] transition-colors", active ? "bg-surface font-medium text-ink shadow-card ring-1 ring-line" : "text-ink-2 hover:bg-subtle hover:text-ink")}>
-                  {active && <span className="absolute -left-3 top-1.5 bottom-1.5 w-[2px] rounded-full bg-cobalt" />}
-                  <Icon className={cn("size-[15px]", active ? "text-ink" : "text-ink-3")} strokeWidth={1.75} />
-                  {label}
-                  {count > 0 && <span className="tnum ml-auto rounded bg-subtle px-1.5 text-[11px] font-medium text-ink-2 ring-1 ring-line">{count}</span>}
-                </Link>
+                <li key={href}>
+                  <Link
+                    href={href}
+                    onClick={onNavigate}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "group relative flex items-center gap-3 rounded-md px-3 py-[7px] text-[13.5px] transition-colors duration-150",
+                      active ? "bg-white/[0.06] font-medium text-white" : "text-night-2 hover:bg-white/[0.035] hover:text-night",
+                    )}
+                  >
+                    <span className={cn("absolute -left-3 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full transition-all duration-200", active ? "bg-lime opacity-100" : "opacity-0")} />
+                    <Icon className={cn("size-[17px] transition-colors", active ? "text-lime" : "text-night-3 group-hover:text-night-2")} strokeWidth={1.7} />
+                    <span className="truncate">{label}</span>
+                    {count > 0 && <span className={cn("tnum ml-auto text-[12px]", active ? "text-white" : "text-night-3")}>{count}</span>}
+                  </Link>
+                </li>
               );
             })}
-          </div>
+          </ul>
         </div>
       ))}
     </nav>
   );
 }
 
-export function Sidebar({ counts, footer }: { counts: { findings: number; actions: number }; footer: React.ReactNode }) {
+function RailBody(p: RailProps & { onNavigate?: () => void; mobile?: boolean }) {
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line bg-[#fbfbfa] px-3 py-4 lg:flex">
-      <div className="mb-6 px-2"><Logo /></div>
-      <NavList counts={counts} />
-      <div className="mt-auto">{footer}</div>
+    <>
+      <div className="px-3 pb-5 pt-1"><Logo /></div>
+      <div className="mb-6"><RailBusinessSwitcher current={p.business} businesses={p.businesses} isSample={p.isSample} /></div>
+      <div className={p.mobile ? "pb-6" : "min-h-0 flex-1 overflow-y-auto pb-6"}><NavList counts={p.counts} onNavigate={p.onNavigate} /></div>
+      <div className="border-t border-midnight-line pt-4"><AgentRoster liveAi={p.liveAi} scan={p.scan} /></div>
+    </>
+  );
+}
+
+export function Sidebar(p: RailProps) {
+  return (
+    <aside className="on-dark fixed inset-y-0 left-0 z-30 hidden w-[256px] flex-col bg-midnight px-3 py-5 lg:flex">
+      <RailBody {...p} />
     </aside>
   );
 }
 
-export function MobileNav({ counts }: { counts: { findings: number; actions: number } }) {
+export function MobileNav(p: RailProps) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const path = usePathname();
@@ -94,19 +122,18 @@ export function MobileNav({ counts }: { counts: { findings: number; actions: num
     window.addEventListener("keydown", onKey);
     return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
   }, [open]);
-  // Rendered into <body> so no ancestor (sticky header, transforms, filters) can clip the full-screen sheet.
   const sheet = open && mounted ? createPortal(
-    <div className="fixed inset-0 z-[60] bg-ink/30 lg:hidden" onClick={() => setOpen(false)} role="dialog" aria-modal="true" aria-label="Navigation">
-      <div className="h-full w-72 max-w-[85vw] overflow-y-auto bg-[#fbfbfa] px-3 py-4 shadow-pop animate-slide-in" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-6 flex items-center justify-between px-2"><Logo /><button onClick={() => setOpen(false)} aria-label="Close navigation" className="rounded p-1 text-ink-3 hover:bg-subtle"><X className="size-4" /></button></div>
-        <NavList counts={counts} onNavigate={() => setOpen(false)} />
+    <div className="fixed inset-0 z-[60] bg-midnight/50 lg:hidden" onClick={() => setOpen(false)} role="dialog" aria-modal="true" aria-label="Navigation">
+      <div className="on-dark relative flex h-full w-[280px] max-w-[85vw] flex-col overflow-y-auto overscroll-contain bg-midnight px-3 py-5 shadow-pop animate-slide-in" onClick={(e) => e.stopPropagation()}>
+        <button onClick={() => setOpen(false)} aria-label="Close navigation" className="absolute right-3 top-4 rounded p-1.5 text-night-2 hover:bg-white/5"><X className="size-4" /></button>
+        <RailBody {...p} mobile onNavigate={() => setOpen(false)} />
       </div>
     </div>,
     document.body,
   ) : null;
   return (
     <>
-      <button onClick={() => setOpen(true)} className="rounded-md p-1.5 text-ink-2 hover:bg-subtle lg:hidden" aria-label="Open navigation"><Menu className="size-5" /></button>
+      <button onClick={() => setOpen(true)} className="-ml-1 rounded-md p-1.5 text-ink-2 hover:bg-ink/5 lg:hidden" aria-label="Open navigation"><Menu className="size-5" /></button>
       {sheet}
     </>
   );

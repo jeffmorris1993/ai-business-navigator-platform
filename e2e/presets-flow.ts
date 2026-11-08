@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- e2e scripts parse untyped NDJSON events */
 // Example-company onboarding + mobile menu checks.
 // Usage: BASE_URL=http://localhost:3000 [SHOTS_DIR=...] npx tsx e2e/presets-flow.ts
 import { chromium, devices, type Page } from "playwright";

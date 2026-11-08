@@ -11,11 +11,11 @@ export default async function ActionsPage() {
     db().from("tasks").select("*").eq("business_id", businessId).order("created_at", { ascending: false }),
     db().from("drafts").select("*").eq("business_id", businessId).order("created_at", { ascending: false }).limit(60),
     db().from("pending_actions").select("id,tool,summary,created_at").eq("business_id", businessId).eq("status", "pending").order("created_at", { ascending: false }),
-    db().from("findings").select("id,title,status,resolved_by,resolution_note,resolved_at,agent").eq("business_id", businessId).order("created_at", { ascending: false }),
+    db().from("findings").select("id,title,status,resolved_by,resolution_note,resolved_at,agent,value,value_kind").eq("business_id", businessId).order("created_at", { ascending: false }),
   ]);
   return (
     <>
-      <PageHeader title="Action Center" description="Where your agents' recommendations become business activity: review and approve prepared work, track tasks, and see which outcomes software has verified." />
+      <PageHeader eyebrow="Operations queue" title="Action Center" description="Where your agents' recommendations become business activity: review and approve prepared work, track tasks, and see which outcomes software has verified." />
       <ActionCenter tasks={(tasks.data ?? []) as Task[]} drafts={(drafts.data ?? []) as DraftRow[]} pending={pending.data ?? []} findings={(findings.data ?? []) as FindingLite[]} />
     </>
   );

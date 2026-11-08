@@ -22,8 +22,8 @@ export function PresetGrid({ compact }: { compact?: boolean }) {
         <section key={g.title}>
           <div className="mb-3 flex items-baseline gap-2">
             <g.Icon className="size-4 self-center text-ink-3" />
-            <h2 className="text-[13px] font-semibold uppercase tracking-[0.06em] text-ink-3">{g.title}</h2>
-            <span className="text-[12.5px] text-ink-4">· {g.hint}</span>
+            <h2 className="text-[14px] font-medium text-ink">{g.title}</h2>
+            <span className="text-[13px] text-ink-3">{g.hint}</span>
           </div>
           <div className={`grid gap-3 ${compact ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
             {g.items.map((p) => <PresetCard key={p.slug} p={p} compact={compact} />)}
@@ -59,25 +59,25 @@ function PresetCard({ p, compact }: { p: Preset; compact?: boolean }) {
     } catch { setBusy(null); }
   }
   return (
-    <div className="flex flex-col rounded-lg border border-line bg-surface p-4 shadow-card">
+    <div className="group flex flex-col rounded-lg border border-line bg-surface p-5 shadow-card transition hover:border-line-strong hover:shadow-lift" data-preset={p.slug}>
       <div className="flex items-start gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-md bg-subtle text-sm font-semibold text-ink-2 ring-1 ring-line">{p.name.slice(0, 1)}</span>
+        <span className="grid size-10 shrink-0 place-items-center rounded-[9px] bg-midnight font-display text-[18px] text-lime">{p.name.slice(0, 1)}</span>
         <div className="min-w-0">
-          <div className="text-[14px] font-semibold leading-tight text-ink">{p.name}</div>
-          <div className="mt-0.5 text-xs text-ink-3">{p.profile.industry} · {p.records === "manual" ? `${p.profile.sales_tracking} (manual entry)` : p.profile.sales_tracking}</div>
+          <div className="font-display text-[18px] leading-tight text-ink">{p.name}</div>
+          <div className="mt-1 text-[12.5px] text-ink-3">{p.profile.industry} · {p.records === "manual" ? `${p.profile.sales_tracking} (manual entry)` : p.profile.sales_tracking}</div>
         </div>
       </div>
-      <p className="mt-3 text-[13px] leading-relaxed text-ink-2">{p.problem}</p>
+      <p className="mt-3.5 text-[14px] leading-relaxed text-ink-2">{p.problem}</p>
       {!compact && (
         <ul className="mt-2 space-y-0.5 text-[12px] text-ink-3">
           {p.includes.map((i) => <li key={i}>· {i}</li>)}
         </ul>
       )}
       <div className="mt-auto flex flex-wrap gap-2 pt-4">
-        <button onClick={scratch} disabled={Boolean(busy)} className="inline-flex h-8 items-center gap-1.5 rounded-md bg-cobalt px-3 text-[13px] font-medium text-white hover:bg-cobalt-700 disabled:opacity-60">
+        <button onClick={scratch} disabled={Boolean(busy)} className="inline-flex h-9 items-center gap-1.5 rounded-[8px] bg-ink px-3.5 text-[13px] font-medium text-white hover:bg-ink/85 disabled:opacity-60">
           {busy === "scratch" ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />} Onboard from scratch
         </button>
-        <button onClick={open} disabled={Boolean(busy)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line-strong bg-surface px-3 text-[13px] font-medium text-ink hover:bg-subtle disabled:opacity-60">
+        <button onClick={open} disabled={Boolean(busy)} className="inline-flex h-9 items-center gap-1.5 rounded-[8px] px-3 text-[13px] font-medium text-ink-2 ring-1 ring-line-strong hover:bg-subtle disabled:opacity-60">
           {busy === "open" ? <Loader2 className="size-3.5 animate-spin" /> : null} Open with data <ArrowRight className="size-3.5" />
         </button>
       </div>

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- e2e scripts parse untyped NDJSON events */
 // End-to-end check of the proactive Intelligence Engine demo (acceptance tests 1-9, 11).
 // Usage: BASE_URL=http://localhost:3000 [NO_KEY_URL=http://localhost:3002] [SHOTS_DIR=...] npx tsx e2e/intelligence-flow.ts
 import { chromium, request, type Page, type APIRequestContext } from "playwright";
@@ -76,7 +77,7 @@ async function main() {
   await page.goto(`${BASE}/actions`);
   const actionsText = await page.locator("main").innerText();
   const hasDraft = /(Follow-up|Payment reminder) for /.test(actionsText);
-  assert.ok(hasDraft || /Prepared by AI\s*\n\s*[1-9]/.test(actionsText), "agents should prepare a draft or task");
+  assert.ok(hasDraft || /Prepared tasks\s*\n?\s*[1-9]/.test(actionsText), "agents should prepare a draft or task");
   if (hasDraft) {
     await page.locator("button", { hasText: /(Follow-up|Payment reminder) for / }).first().click();
     await page.getByRole("button", { name: "Approve", exact: true }).first().click();
@@ -97,12 +98,12 @@ async function main() {
 
   // Test 6: record payment → balances and findings update, follow-up scan reflects it
   await page.goto(`${BASE}/finance`);
-  const overdueBefore = await page.locator("text=Overdue").first().locator("..").innerText();
+  const overdueBefore = await page.getByText("Overdue", { exact: true }).first().locator("..").innerText();
   await page.getByRole("button", { name: "Demo Mode" }).click();
   await page.getByRole("banner").getByRole("button", { name: "Record payment" }).click();
   await page.getByText(/Recorded a .* payment from/).waitFor();
   await page.reload();
-  const overdueAfter = await page.locator("text=Overdue").first().locator("..").innerText();
+  const overdueAfter = await page.getByText("Overdue", { exact: true }).first().locator("..").innerText();
   assert.notEqual(overdueBefore, overdueAfter);
   const follow = await streamScan(api, { followUp: true });
   const done2 = follow.events.find((e) => e.type === "done");

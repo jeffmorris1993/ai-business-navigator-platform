@@ -24,7 +24,7 @@ export function AgentChat({ agent, suggestions = [], liveAi, autoQuestion, compa
   const running = turns.some((t) => t.running);
 
   useEffect(() => {
-    bottom.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (turns.length) bottom.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [turns]);
 
   async function ask(question: string) {

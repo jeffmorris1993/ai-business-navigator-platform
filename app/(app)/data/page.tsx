@@ -25,7 +25,7 @@ export default async function DataPage() {
   const own = Object.values(SAMPLE_FILES[b.slug ?? ""] ?? {}).flat() as Array<{ file: string; label: string }>;
   return (
     <>
-      <PageHeader title="Data & Connections" description="Everything the agents are allowed to look at: files you've uploaded, numbers you've entered, and your answers. Original files are stored privately and every record links back to its source row." />
+      <PageHeader eyebrow="Sources" title="Data & Connections" description="Everything the agents are allowed to look at: files you've uploaded, numbers you've entered, and your answers. Original files are stored privately and every record links back to its source row." />
       <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
         <div className="space-y-6">
           <Card>

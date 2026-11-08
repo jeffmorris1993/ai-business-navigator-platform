@@ -1,3 +1,4 @@
+import { PublicHeader } from "@/components/brand/public-header";
 import Link from "next/link";
 import { sponsorPage } from "@/lib/page-auth";
 import { sponsorMetrics } from "@/lib/services/sponsor";
@@ -19,21 +20,20 @@ export default async function SponsorDashboard({ searchParams }: { searchParams:
   const t = m.totals;
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="border-b border-line bg-[#fbfbfa]">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-6 py-3">
-          <span className="grid size-8 place-items-center rounded-md bg-ink text-white"><Building2 className="size-4" /></span>
-          <div className="min-w-0">
-            <div className="truncate text-[13.5px] font-semibold">{m.sponsor.program_name}</div>
-            <div className="truncate text-xs text-ink-3">{m.sponsor.name} · powered by Sirrom Business AI Navigator</div>
-          </div>
-          <div className="ml-auto"><SponsorSignOut /></div>
+      <PublicHeader>
+        <span className="hidden h-5 w-px bg-midnight-line sm:block" />
+        <div className="min-w-0 text-right sm:text-left">
+          <div className="flex items-center gap-1.5 truncate text-[13px] font-medium text-white"><Building2 className="size-3.5 text-night-3" />{m.sponsor.program_name}</div>
+          <div className="truncate text-[11.5px] text-night-3">{m.sponsor.name}</div>
         </div>
-      </header>
+        <SponsorSignOut />
+      </PublicHeader>
       <main className="mx-auto max-w-6xl space-y-9 px-6 py-8">
         <div className="flex flex-col gap-4 border-b border-line pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-[22px] font-semibold tracking-tight">Program impact</h1>
-            <p className="mt-1 max-w-2xl text-[13.5px] text-ink-3">How participating small businesses move from a first readiness check to AI agents investigating their records and preparing work.</p>
+            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-4">Sponsor dashboard</div>
+            <h1 className="mt-2 font-display text-[36px] leading-tight tracking-[-0.02em]">Program impact</h1>
+            <p className="mt-2 max-w-2xl text-[15px] text-ink-3">How participating small businesses move from a first readiness check to AI agents investigating their records and preparing work.</p>
           </div>
           <div className="flex rounded-md border border-line bg-surface p-0.5 text-xs shadow-card">
             <Link href="/sponsor?sim=1" className={cn("rounded px-2.5 py-1", includeSim ? "bg-ink text-white" : "text-ink-3")}>Include simulated cohort ({m.simulatedCount})</Link>

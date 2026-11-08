@@ -17,7 +17,7 @@ export default async function AdvisorPage() {
   const steps = runIds.length ? (await db().from("agent_steps").select("run_id,tool,ok").in("run_id", runIds).eq("kind", "tool_call")).data ?? [] : [];
   return (
     <>
-      <PageHeader title="AI Advisor" description="One place to ask anything about your business. The Advisor picks the right readiness, sales or financial tools, uses only this business's records, and remembers this conversation." />
+      <PageHeader eyebrow="Assistant" title="AI Advisor" description="One place to ask anything about your business. The Advisor picks the right readiness, sales or financial tools, uses only this business's records, and remembers this conversation." />
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <Card>
           <CardContent className="pt-5">

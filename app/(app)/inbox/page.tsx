@@ -2,16 +2,18 @@ import Link from "next/link";
 import { ownerPage } from "@/lib/page-auth";
 import { db } from "@/lib/db/client";
 import * as repo from "@/lib/db/repo";
-import { listFindings, getFinding } from "@/lib/intelligence/findings";
+import { listFindings, getFinding, type FindingRow } from "@/lib/intelligence/findings";
 import { categoryDef, VALUE_LABEL, type ValueKind } from "@/lib/intelligence/categories";
 import { formatMoney } from "@/lib/calc/money";
 import { daysBetween, demoToday } from "@/lib/calc/dates";
 import { liveAiAvailable } from "@/lib/ai/openai";
-import { PageHeader, EmptyState, Priority, AgentTag, AGENT_META } from "@/components/app/status";
-import { FindingList, FindingStatus, sortFindings } from "@/components/app/findings";
+import { PageHeader, EmptyState, Priority, AgentGlyph, AGENT_META, PRIORITY_META } from "@/components/app/status";
+import { FindingStatus, sortFindings, formatFindingValue } from "@/components/app/findings";
 import { FindingActions } from "@/components/app/finding-actions";
+import { InboxKeys } from "@/components/app/inbox-keys";
 import { timeAgo } from "@/components/app/activity-timeline";
-import { Inbox as InboxIcon, FileSpreadsheet, Mail, ListChecks, ShieldCheck, Clock } from "lucide-react";
+import { LinkTabs, Segmented } from "@/components/ui/tabs";
+import { Inbox as InboxIcon, FileSpreadsheet, Mail, ListChecks, ShieldCheck, ArrowLeft, ArrowRight, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +25,7 @@ const VIEWS = [
   { key: "dismissed", label: "Dismissed" },
 ];
 const OPEN = ["new", "needs_review", "action_prepared", "in_progress"];
+const EVIDENCE: Record<string, string> = { verified_records: "Verified from your records", partial_records: "Partial records — some fields missing", owner_reported: "Reported by you, not from records" };
 
 export default async function InboxPage({ searchParams }: { searchParams: Promise<{ view?: string; agent?: string; f?: string }> }) {
   const { businessId } = await ownerPage();
@@ -34,22 +37,17 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   if (sp.agent) shown = shown.filter((f) => f.agent === sp.agent);
   shown = view === "open" || view === "needs_review" ? sortFindings(shown) : shown;
   const selected = sp.f ? await getFinding(businessId, sp.f) : shown[0] ?? null;
-  const q = (o: Record<string, string | undefined>) => "?" + new URLSearchParams(Object.entries({ view, agent: sp.agent, ...o }).filter(([, v]) => v) as [string, string][]).toString();
+  const q = (o: Record<string, string | undefined>) => "/inbox?" + new URLSearchParams(Object.entries({ view, agent: sp.agent, ...o }).filter(([, v]) => v) as [string, string][]).toString();
+  const hrefs = shown.map((f) => q({ f: f.id }));
+  const idx = shown.findIndex((f) => f.id === selected?.id);
+  const total = shown.reduce((s, f) => s + (f.value_kind !== "none" && f.value_kind !== "expense_change" ? f.value ?? 0 : 0), 0);
 
   return (
     <>
-      <PageHeader title="Intelligence Inbox" description="Everything your agents discovered, with the records behind it. Findings persist, are re-verified by software whenever your records change, and never duplicate." />
-      <div className="mb-4 flex flex-wrap items-center gap-1 border-b border-line">
-        {VIEWS.map((v) => (
-          <Link key={v.key} href={q({ view: v.key, f: undefined })} className={cn("-mb-px border-b-2 px-3 py-2 text-[13px]", view === v.key ? "border-ink font-medium text-ink" : "border-transparent text-ink-3 hover:text-ink")}>
-            {v.label} <span className="tnum text-ink-4">{counts[v.key]}</span>
-          </Link>
-        ))}
-        <div className="ml-auto flex gap-1 pb-1.5">
-          {["", "sales", "finance", "readiness"].map((a) => (
-            <Link key={a || "all"} href={q({ agent: a || undefined, f: undefined })} className={cn("rounded px-2 py-1 text-xs", (sp.agent ?? "") === a ? "bg-ink text-white" : "text-ink-3 hover:bg-subtle")}>{a ? AGENT_META[a].short : "All agents"}</Link>
-          ))}
-        </div>
+      <PageHeader eyebrow="Case management" title="Intelligence Inbox" description="Everything your agents discovered, with the records behind it. Findings persist, are re-verified by software whenever your records change, and never duplicate." />
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <LinkTabs className="flex-1" items={VIEWS.map((v) => ({ href: q({ view: v.key, f: undefined }), label: v.label, count: counts[v.key], active: view === v.key }))} />
+        <Segmented className="self-start sm:mb-1.5 sm:ml-6" items={["", "sales", "finance", "readiness"].map((a) => ({ href: q({ agent: a || undefined, f: undefined }), label: a ? AGENT_META[a].short : "All agents", active: (sp.agent ?? "") === a }))} />
       </div>
 
       {shown.length === 0 && !selected ? (
@@ -57,12 +55,58 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
           {view === "open" ? <>Run an <Link href="/overview" className="text-cobalt hover:underline">AI Intelligence Scan</Link> and findings will appear here.</> : null}
         </EmptyState>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-          <div className="min-w-0">{shown.length ? <FindingList findings={shown} compact selectedId={selected?.id} /> : <p className="text-[13px] text-ink-3">Nothing in this view.</p>}</div>
-          {selected && <FindingDetail businessId={businessId} id={selected.id} />}
+        <div className="grid gap-6 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)] xl:gap-8">
+          <div className={cn("min-w-0", sp.f && "hidden lg:block")}>
+            <div className="mb-2 flex items-center justify-between px-1 text-[12px] text-ink-3">
+              <span>{shown.length} finding{shown.length === 1 ? "" : "s"}{total > 0 ? ` · ${formatMoney(total)} identified` : ""}</span>
+              <span className="hidden items-center gap-1 lg:flex"><kbd className="rounded border border-line-strong bg-surface px-1 font-mono text-[10.5px]">↑</kbd><kbd className="rounded border border-line-strong bg-surface px-1 font-mono text-[10.5px]">↓</kbd> to move</span>
+            </div>
+            {shown.length ? (
+              <ul className="overflow-hidden rounded-panel border border-line bg-surface shadow-card" aria-label="Findings">
+                {shown.map((f) => <InboxRow key={f.id} f={f} href={q({ f: f.id })} selected={f.id === selected?.id} />)}
+              </ul>
+            ) : <p className="text-[13.5px] text-ink-3">Nothing in this view.</p>}
+          </div>
+          {selected && (
+            <div className={cn("min-w-0", !sp.f && "hidden lg:block")}>
+              <Link href={q({ f: undefined })} className="mb-3 inline-flex items-center gap-1 text-[13.5px] text-ink-3 hover:text-ink lg:hidden"><ArrowLeft className="size-4" /> All findings</Link>
+              <FindingDetail businessId={businessId} id={selected.id} />
+            </div>
+          )}
         </div>
       )}
+      {idx >= 0 && <InboxKeys hrefs={hrefs} current={idx} />}
     </>
+  );
+}
+
+function InboxRow({ f, href, selected }: { f: FindingRow; href: string; selected: boolean }) {
+  const v = formatFindingValue(f);
+  return (
+    <li className="border-b border-line last:border-b-0">
+      <Link href={href} scroll={false} aria-current={selected ? "true" : undefined} className={cn("relative flex gap-3 px-4 py-3.5 transition-colors", selected ? "bg-cobalt-50/70" : "hover:bg-ink/[0.025]")}>
+        {selected && <span className="absolute inset-y-0 left-0 w-[3px] bg-cobalt" />}
+        <span className={cn("mt-1 h-8 w-[3px] shrink-0 rounded-full", PRIORITY_META[f.priority]?.bar ?? "bg-line-strong")} aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <div className={cn("line-clamp-2 text-[14px] font-medium leading-snug", selected ? "text-cobalt-700" : "text-ink")}>{f.title}</div>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-ink-3">
+            <span className="flex items-center gap-1"><AgentGlyph agent={f.agent} size={14} />{AGENT_META[f.agent]?.short}</span>
+            <span className="capitalize">{f.priority}</span>
+            <FindingStatus status={f.status} />
+          </div>
+        </div>
+        {v && <span className="tnum shrink-0 pt-px text-[13.5px] font-semibold text-ink">{v}</span>}
+      </Link>
+    </li>
+  );
+}
+
+function Block({ title, icon, tone, children }: { title: string; icon: React.ReactNode; tone: "ai" | "software"; children: React.ReactNode }) {
+  return (
+    <section className={cn("rounded-xl p-5", tone === "ai" ? "bg-cobalt-50/50 ring-1 ring-cobalt/10" : "bg-teal/[0.05] ring-1 ring-teal/15")}>
+      <div className={cn("mb-3 flex items-center gap-2 text-[12.5px] font-medium", tone === "ai" ? "text-cobalt-700" : "text-teal-700")}>{icon}{title}</div>
+      {children}
+    </section>
   );
 }
 
@@ -81,78 +125,95 @@ async function FindingDetail({ businessId, id }: { businessId: string; id: strin
   ]);
   const fileName = Object.fromEntries(files.map((x) => [x.id, x.filename]));
   const open = OPEN.includes(f.status);
+  const v = formatFindingValue(f);
+  const trigger = scanRow.data ? ({ manual: "a manual scan", import: "an import-triggered scan", follow_up: "a follow-up scan", software_only: "a software check" } as Record<string, string>)[scanRow.data.trigger] ?? "a scan" : null;
+  const th = "px-3 py-2 font-medium";
+  const td = "px-3 py-2";
+
   return (
-    <div className="min-w-0 self-start rounded-lg border border-line bg-surface shadow-card lg:sticky lg:top-16">
-      <div className="border-b border-line p-5">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <Priority p={f.priority} /><AgentTag agent={f.agent} /><span className="text-xs text-ink-4">{def?.label}</span><FindingStatus status={f.status} />
+    <article className="min-w-0 overflow-hidden rounded-panel border border-line bg-surface shadow-card" aria-label="Finding detail">
+      <header className="border-b border-line px-6 pb-6 pt-5 sm:px-8">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          <Priority p={f.priority} />
+          <span className="flex items-center gap-1.5 text-[12.5px] text-ink-2"><AgentGlyph agent={f.agent} size={18} />{AGENT_META[f.agent]?.label}</span>
+          <span className="text-[12.5px] text-ink-4">{def?.label}</span>
+          <FindingStatus status={f.status} />
         </div>
-        <h2 className="mt-2 text-[17px] font-semibold leading-snug tracking-tight">{f.title}</h2>
-        {f.value != null && f.value_kind !== "none" && (
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="tnum text-2xl font-semibold tracking-tight">{f.value_kind === "expense_change" ? "+" : ""}{formatMoney(f.value)}{f.value_kind === "expense_change" ? "/mo" : ""}</span>
-            <span className="text-xs text-ink-3">{VALUE_LABEL[f.value_kind as ValueKind]} · calculated by software from {f.record_refs.length || "your"} record{f.record_refs.length === 1 ? "" : "s"}{f.value_kind === "potential_pipeline" ? " · not guaranteed revenue" : ""}</span>
+        <h2 className="mt-3 font-display text-[28px] leading-[1.15] tracking-[-0.015em] text-ink">{f.title}</h2>
+        {v && (
+          <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="tnum text-[36px] font-semibold leading-none tracking-[-0.035em] text-ink">{v}</span>
+            <span className="text-[13px] text-ink-3">{VALUE_LABEL[f.value_kind as ValueKind]}{f.value_kind === "potential_pipeline" ? " · not guaranteed revenue" : ""}</span>
           </div>
         )}
-      </div>
-      <div className="space-y-5 p-5">
-        <div>
-          <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-4">Why it matters</div>
-          <p className="text-[13.5px] leading-relaxed text-ink-2">{f.explanation}</p>
+      </header>
+
+      <div className="space-y-6 px-6 py-6 sm:px-8">
+        <div className="grid gap-4 2xl:grid-cols-[1.5fr_1fr]">
+          <Block tone="ai" title={`AI interpretation · ${AGENT_META[f.agent]?.label ?? "Agent"}`} icon={<Brain className="size-4" />}>
+            <div className="text-[12px] font-medium text-ink-3">Why it matters</div>
+            <p className="mt-1 text-[14.5px] leading-relaxed text-ink-2">{f.explanation}</p>
+            {f.recommended_action && (
+              <>
+                <div className="mt-4 text-[12px] font-medium text-ink-3">Recommended action</div>
+                <p className="mt-1 flex gap-2 text-[14.5px] leading-relaxed text-ink"><ArrowRight className="mt-1 size-4 shrink-0 text-cobalt" />{f.recommended_action}</p>
+              </>
+            )}
+          </Block>
+          <Block tone="software" title="Verified by software" icon={<ShieldCheck className="size-4" />}>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-[13px] sm:grid-cols-3 2xl:grid-cols-2">
+              <div><dt className="text-ink-3">Value</dt><dd className="tnum mt-0.5 font-medium text-ink">{v ?? "No dollar value"}</dd></div>
+              <div><dt className="text-ink-3">Qualifying records</dt><dd className="tnum mt-0.5 font-medium text-ink">{f.record_refs.length || "—"}</dd></div>
+              <div><dt className="text-ink-3">Last verified</dt><dd className="mt-0.5 font-medium text-ink">{timeAgo(f.last_verified_at)}</dd></div>
+              <div><dt className="text-ink-3">Confirmed in</dt><dd className="tnum mt-0.5 font-medium text-ink">{f.times_verified} scan{f.times_verified === 1 ? "" : "s"}</dd></div>
+              <div className="col-span-2 sm:col-span-1 2xl:col-span-2"><dt className="text-ink-3">Evidence quality</dt><dd className="mt-0.5 font-medium text-ink">{EVIDENCE[f.evidence_quality] ?? f.evidence_quality.replace("_", " ")}</dd></div>
+            </dl>
+            {f.resolution_note && (
+              <p className="mt-4 border-t border-teal/15 pt-3 text-[13px] leading-relaxed text-teal-700">{f.resolved_by === "software_verified" ? "Verified by software: " : f.resolved_by === "ai_scan" ? "Closed by an AI scan: " : f.resolved_by === "owner" ? "Closed by you: " : ""}{f.resolution_note}</p>
+            )}
+          </Block>
         </div>
-        {f.recommended_action && (
-          <div className="rounded-md bg-subtle px-3.5 py-2.5">
-            <div className="mb-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-4">Recommended action</div>
-            <p className="text-[13.5px] text-ink">{f.recommended_action}</p>
-          </div>
-        )}
-        {f.resolution_note && (
-          <p className="flex items-start gap-1.5 text-[12.5px] text-teal-700"><ShieldCheck className="mt-0.5 size-3.5 shrink-0" />{f.resolved_by === "software_verified" ? "Verified by software: " : f.resolved_by === "ai_scan" ? "Closed by an AI scan: " : f.resolved_by === "owner" ? "Closed by you: " : ""}{f.resolution_note}</p>
-        )}
 
         {(opps.data?.length || invs.data?.length) ? (
-          <div>
-            <div className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-4">Supporting records</div>
-            <div className="overflow-x-auto rounded-md border border-line">
-              <table className="w-full text-[12.5px]">
-                <thead className="bg-subtle text-left text-[11px] text-ink-3">
-                  {opps.data?.length ? <tr><th className="px-2.5 py-1.5 font-medium">Customer</th><th className="px-2.5 py-1.5 text-right font-medium">Estimate</th><th className="px-2.5 py-1.5 font-medium">Last contact</th><th className="hidden px-2.5 py-1.5 font-medium sm:table-cell">Source</th></tr>
-                    : <tr><th className="px-2.5 py-1.5 font-medium">Invoice</th><th className="px-2.5 py-1.5 font-medium">Customer</th><th className="px-2.5 py-1.5 text-right font-medium">Still owed</th><th className="px-2.5 py-1.5 font-medium">Due</th><th className="hidden px-2.5 py-1.5 font-medium sm:table-cell">Source</th></tr>}
+          <section>
+            <h3 className="mb-2.5 text-[13.5px] font-medium text-ink">Supporting records <span className="font-normal text-ink-3">· the exact rows software used</span></h3>
+            <div className="overflow-x-auto rounded-lg border border-line">
+              <table className="w-full text-[13px]">
+                <thead className="bg-subtle/70 text-left text-[12px] text-ink-3">
+                  {opps.data?.length ? <tr><th className={th}>Customer</th><th className={cn(th, "text-right")}>Estimate</th><th className={th}>Last contact</th><th className={cn(th, "hidden sm:table-cell")}>Source</th></tr>
+                    : <tr><th className={th}>Invoice</th><th className={th}>Customer</th><th className={cn(th, "text-right")}>Still owed</th><th className={th}>Due</th><th className={cn(th, "hidden sm:table-cell")}>Source</th></tr>}
                 </thead>
                 <tbody className="divide-y divide-line">
                   {(opps.data ?? []).sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0)).map((o) => (
-                    <tr key={o.id}><td className="px-2.5 py-1.5 font-medium">{o.customer}</td><td className="tnum px-2.5 py-1.5 text-right">{formatMoney(Number(o.amount))}</td><td className="px-2.5 py-1.5">{o.last_contact_on ? `${o.last_contact_on} · ${daysBetween(o.last_contact_on, today)}d ago` : "—"}{o.status !== "open" && <span className="ml-1 text-teal-700">({o.status})</span>}</td><td className="hidden px-2.5 py-1.5 text-ink-3 sm:table-cell"><FileSpreadsheet className="mr-1 inline size-3" />{o.source_file_id ? `${fileName[o.source_file_id] ?? "file"} r${o.source_row}` : "app"}</td></tr>
+                    <tr key={o.id} className="hover:bg-ink/[0.015]"><td className={cn(td, "font-medium")}>{o.customer}</td><td className={cn(td, "tnum text-right")}>{formatMoney(Number(o.amount))}</td><td className={td}>{o.last_contact_on ? <>{o.last_contact_on} <span className="text-ink-3">· {daysBetween(o.last_contact_on, today)}d ago</span></> : "—"}{o.status !== "open" && <span className="ml-1 text-teal-700">({o.status})</span>}</td><td className={cn(td, "hidden text-ink-3 sm:table-cell")}><FileSpreadsheet className="mr-1 inline size-3.5" />{o.source_file_id ? `${fileName[o.source_file_id] ?? "file"} · row ${o.source_row}` : "Entered in app"}</td></tr>
                   ))}
                   {(invs.data ?? []).map((i) => (
-                    <tr key={i.id}><td className="px-2.5 py-1.5 font-medium">#{i.invoice_no}</td><td className="px-2.5 py-1.5">{i.customer}</td><td className={cn("tnum px-2.5 py-1.5 text-right", Number(i.amount_due) === 0 && "text-teal-700")}>{Number(i.amount_due) === 0 ? "Paid" : formatMoney(Number(i.amount_due), { cents: true })}</td><td className="px-2.5 py-1.5">{i.due_on}{i.due_on && Number(i.amount_due) > 0 && daysBetween(i.due_on, today) > 0 && <span className="text-red-700"> · {daysBetween(i.due_on, today)}d late</span>}</td><td className="hidden px-2.5 py-1.5 text-ink-3 sm:table-cell"><FileSpreadsheet className="mr-1 inline size-3" />{i.source_file_id ? `${fileName[i.source_file_id] ?? "file"} r${i.source_row}` : "app"}</td></tr>
+                    <tr key={i.id} className="hover:bg-ink/[0.015]"><td className={cn(td, "font-medium")}>#{i.invoice_no}</td><td className={td}>{i.customer}</td><td className={cn(td, "tnum text-right", Number(i.amount_due) === 0 && "text-teal-700")}>{Number(i.amount_due) === 0 ? "Paid" : formatMoney(Number(i.amount_due), { cents: true })}</td><td className={td}>{i.due_on}{i.due_on && Number(i.amount_due) > 0 && daysBetween(i.due_on, today) > 0 && <span className="text-red-700"> · {daysBetween(i.due_on, today)}d late</span>}</td><td className={cn(td, "hidden text-ink-3 sm:table-cell")}><FileSpreadsheet className="mr-1 inline size-3.5" />{i.source_file_id ? `${fileName[i.source_file_id] ?? "file"} · row ${i.source_row}` : "Entered in app"}</td></tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
+          </section>
         ) : null}
 
-        <div>
-          <div className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-4">Prepared work</div>
+        <section>
+          <h3 className="mb-2.5 text-[13.5px] font-medium text-ink">Prepared work</h3>
           {(drafts.data?.length || tasks.data?.length) ? (
-            <ul className="space-y-1 text-[13px]">
-              {(drafts.data ?? []).map((d) => <li key={d.id}><Link href="/actions#drafts" className="flex items-center gap-2 hover:underline"><Mail className="size-3.5 text-ink-3" />{d.kind === "sales_followup" ? "Follow-up" : "Payment reminder"} for {d.recipient} <span className="text-xs text-ink-3">· {d.status === "approved" ? "approved, not sent" : "awaiting your review"}{d.written_by === "ai" ? " · written by AI" : ""}</span></Link></li>)}
-              {(tasks.data ?? []).map((t) => <li key={t.id}><Link href="/actions" className="flex items-center gap-2 hover:underline"><ListChecks className="size-3.5 text-ink-3" />{t.title} <span className="text-xs capitalize text-ink-3">· {t.status.replace("_", " ")}</span></Link></li>)}
+            <ul className="divide-y divide-line rounded-lg border border-line">
+              {(drafts.data ?? []).map((d) => <li key={d.id}><Link href="/actions#drafts" className="flex items-center gap-3 px-3.5 py-2.5 text-[13.5px] hover:bg-ink/[0.02]"><Mail className="size-4 text-ink-3" /><span className="flex-1">{d.kind === "sales_followup" ? "Follow-up" : "Payment reminder"} for {d.recipient}</span><span className="text-[12px] text-ink-3">{d.status === "approved" ? "Approved · not sent" : "Awaiting your review"}{d.written_by === "ai" ? " · written by AI" : ""}</span></Link></li>)}
+              {(tasks.data ?? []).map((t) => <li key={t.id}><Link href="/actions" className="flex items-center gap-3 px-3.5 py-2.5 text-[13.5px] hover:bg-ink/[0.02]"><ListChecks className="size-4 text-ink-3" /><span className="flex-1">{t.title}</span><span className="text-[12px] capitalize text-ink-3">{t.status.replace("_", " ")}</span></Link></li>)}
             </ul>
-          ) : <p className="text-[13px] text-ink-3">Nothing prepared yet.</p>}
-        </div>
+          ) : <p className="text-[13.5px] text-ink-3">Nothing prepared yet. Prepare a draft or create a task below.</p>}
+        </section>
 
-        {open && <FindingActions id={f.id} title={f.title} canDraft={def?.refType === "invoice" || def?.refType === "sales_opportunity"} records={f.record_refs.map((r) => ({ id: r.id, label: r.label ?? r.id }))} liveAi={liveAiAvailable()} />}
-        {!open && <FindingActions id={f.id} title={f.title} reopenOnly records={[]} liveAi={liveAiAvailable()} />}
-
-        <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-line pt-3 text-[11.5px] text-ink-3">
-          <span className="flex items-center gap-1"><Clock className="size-3" />Found {timeAgo(f.created_at)}{scanRow.data ? ` by ${({ manual: "a manual scan", import: "an import-triggered scan", follow_up: "a follow-up scan", software_only: "a software check" } as Record<string, string>)[scanRow.data.trigger] ?? "a scan"}` : ""}</span>
-          <span>Last verified {timeAgo(f.last_verified_at)}</span>
-          <span>Confirmed in {f.times_verified} scan{f.times_verified === 1 ? "" : "s"}</span>
-          <span>Evidence: {f.evidence_quality.replace("_", " ")}</span>
-          {f.dismissed_reason && <span>Dismissed: {f.dismissed_reason}</span>}
-        </div>
+        <p className="text-[12.5px] text-ink-3">Found {timeAgo(f.created_at)}{trigger ? ` by ${trigger}` : ""}{f.dismissed_reason ? ` · Dismissed: ${f.dismissed_reason}` : ""}</p>
       </div>
-    </div>
+
+      <footer className="sticky bottom-0 border-t border-line bg-surface/95 px-6 py-4 backdrop-blur-sm sm:px-8">
+        {open
+          ? <FindingActions id={f.id} title={f.title} canDraft={def?.refType === "invoice" || def?.refType === "sales_opportunity"} records={f.record_refs.map((r) => ({ id: r.id, label: r.label ?? r.id }))} liveAi={liveAiAvailable()} />
+          : <FindingActions id={f.id} title={f.title} reopenOnly records={[]} liveAi={liveAiAvailable()} />}
+      </footer>
+    </article>
   );
 }

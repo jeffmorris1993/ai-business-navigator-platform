@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatusPill } from "./status";
 import { FixDialog, type FixProps } from "./fix-dialog";
 import { AgentChat } from "./agent-chat";
+import { AgentPanel } from "./agent-panel";
 import { api } from "@/lib/client";
 import type { CapabilityResult, CapabilityKey, AreaSummary } from "@/lib/readiness/rules";
 import type { InitialReport } from "@/lib/readiness/initial";
@@ -49,48 +50,52 @@ export function ReadinessView(p: Omit<FixProps, "fix" | "onClose"> & {
   const sorted = [...current].sort((a, b) => Number(mightHelp.has(b.capability)) - Number(mightHelp.has(a.capability)));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       {p.initial && <InitialCard r={p.initial} name={p.businessName} onUpload={() => setFix(current.find((c) => c.capability === firstUpload) ?? null)} manualHref="/data#weekly" />}
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="p-5 md:col-span-2">
-          <div className="flex flex-wrap items-center gap-6">
-            <div>
-              <div className="text-xs font-medium uppercase tracking-wide text-slate-500">AI capabilities ready to use</div>
-              <div className="mt-1 text-3xl font-semibold tracking-tight">{ready.length} <span className="text-lg font-normal text-slate-400">of {current.length}</span></div>
-            </div>
-            <div className="flex h-2 min-w-[10rem] flex-1 overflow-hidden rounded-full bg-slate-100">
-              {current.map((c) => <div key={c.capability} className={`h-full flex-1 border-r border-white transition-all ${c.status === "ready" ? "bg-emerald-500" : c.status === "partial" ? "bg-amber-400" : c.status === "needs_setup" ? "bg-rose-400" : "bg-slate-200"}`} title={`${label(c.capability)}: ${c.status}`} />)}
-            </div>
-          </div>
-          <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-slate-500">Before → now:</span>
-            <Badge>{p.report?.readyAtStart.length ?? 0} ready at first check</Badge>
-            <ArrowRight className="size-3.5 text-slate-400" />
-            <Badge variant="green">{ready.length} ready today</Badge>
-            {newly.map((c) => <Badge key={c.capability} variant="brand" className="animate-pop"><Sparkles className="size-3" /> New: {label(c.capability)}</Badge>)}
-          </div>
-        </Card>
-        <Card className="flex flex-col justify-between p-5">
+      {/* Activation track */}
+      <section className="overflow-hidden rounded-panel border border-line bg-surface shadow-card">
+        <div className="flex flex-col gap-6 p-6 sm:p-7 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Checks run automatically</div>
-            <p className="mt-1 text-sm text-slate-600">Whenever you upload data, fix records, or finish a setup task. {p.report && <>Last check {new Date(p.report.lastRun).toLocaleString()}.</>}</p>
+            <div className="text-[12.5px] font-medium text-ink-3">AI capabilities ready to use</div>
+            <div className="tnum mt-2 text-[52px] font-semibold leading-none tracking-[-0.04em] text-ink">{ready.length}<span className="text-[24px] font-normal text-ink-4"> / {current.length}</span></div>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px] text-ink-3">
+              <span>{p.report?.readyAtStart.length ?? 0} at first check</span><ArrowRight className="size-3.5 text-ink-4" /><span className="font-medium text-teal-700">{ready.length} today</span>
+              {newly.map((c) => <span key={c.capability} className="inline-flex items-center gap-1 rounded-full bg-lime-50 px-2 py-0.5 text-[12px] font-medium text-ink ring-1 ring-lime-dim/40 animate-pop"><Sparkles className="size-3" /> New: {label(c.capability)}</span>)}
+            </div>
           </div>
-          <Button variant="secondary" size="sm" className="mt-3 w-fit" disabled={busy} onClick={async () => { setBusy(true); try { const r = await api<{ changes: Change[] }>("/api/readiness/reassess"); setRecheck(r.changes); router.refresh(); } finally { setBusy(false); } }}>
-            {busy ? <Loader2 className="animate-spin" /> : <RefreshCw />} Recheck now
-          </Button>
-        </Card>
-      </div>
+          <div className="flex flex-col items-start gap-2 lg:items-end">
+            <p className="max-w-xs text-[12.5px] text-ink-3 lg:text-right">Checks run automatically when you upload data, fix records, or finish a setup task.{p.report && <> Last check {new Date(p.report.lastRun).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.</>}</p>
+            <Button variant="secondary" size="sm" disabled={busy} onClick={async () => { setBusy(true); try { const r = await api<{ changes: Change[] }>("/api/readiness/reassess"); setRecheck(r.changes); router.refresh(); } finally { setBusy(false); } }}>
+              {busy ? <Loader2 className="animate-spin" /> : <RefreshCw />} Recheck now
+            </Button>
+          </div>
+        </div>
+        <ol className="grid grid-cols-2 border-t border-line sm:grid-cols-4 xl:grid-cols-8" aria-label="Capability activation">
+          {current.map((c, i) => {
+            const st = c.status;
+            return (
+              <li key={c.capability} className={`relative border-line px-4 py-4 ${i % 2 ? "" : "border-r"} sm:border-r xl:[&:nth-child(8)]:border-r-0`} title={`${label(c.capability)}: ${st}`}>
+                <span className={`absolute inset-x-0 top-0 h-[3px] ${st === "ready" ? "bg-teal" : st === "partial" ? "bg-amber" : st === "needs_setup" ? "bg-red/70" : "bg-line-strong"}`} />
+                <span className={`grid size-6 place-items-center rounded-full ${st === "ready" ? "bg-teal text-white" : st === "partial" ? "bg-amber/15 text-amber-700" : "bg-subtle text-ink-4"}`}>{st === "ready" ? <Check className="size-3.5" /> : <span className="tnum text-[11px] font-medium">{i + 1}</span>}</span>
+                <div className="mt-2 text-[12.5px] font-medium leading-snug text-ink">{label(c.capability)}</div>
+                <div className={`mt-0.5 text-[11.5px] ${st === "ready" ? "text-teal-700" : st === "partial" ? "text-amber-700" : "text-ink-3"}`}>{st === "ready" ? "Active" : st === "partial" ? "One step away" : st === "needs_setup" ? "Needs setup" : "Not assessed"}</div>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
       {recheck && <ChangeList changes={recheck} title="Recheck complete" />}
 
       {best && (
-        <div className="flex flex-col gap-3 rounded-lg border border-cobalt/25 bg-cobalt-50/50 px-5 py-4 sm:flex-row sm:items-center">
+        <div className="on-dark flex flex-col gap-4 rounded-panel bg-midnight px-6 py-5 text-night sm:flex-row sm:items-center">
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-lime/15 text-lime"><Target className="size-5" /></span>
           <div className="flex-1">
-            <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-cobalt-700">Most valuable next step</div>
-            <div className="mt-0.5 text-[14px] font-medium text-ink">{best.nextStep}</div>
-            <div className="text-[12.5px] text-ink-3">Unlocks {label(best.capability)}{mightHelp.has(best.capability) ? ", which matches your goal" : ""}.</div>
+            <div className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-night-3">Most valuable next step</div>
+            <div className="mt-1 font-display text-[20px] leading-snug text-white">{best.nextStep}</div>
+            <div className="mt-0.5 text-[13px] text-night-2">Unlocks {label(best.capability)}{mightHelp.has(best.capability) ? ", which matches your goal" : ""}.</div>
           </div>
-          {best.fixAction && <Button onClick={() => setFix(best)}><Wrench /> Fix This Now</Button>}
+          {best.fixAction && <Button variant="signal" size="lg" onClick={() => setFix(best)}><Wrench /> Fix This Now</Button>}
         </div>
       )}
       {GROUPS.map((g) => {
@@ -98,38 +103,38 @@ export function ReadinessView(p: Omit<FixProps, "fix" | "onClose"> & {
         if (!items.length) return null;
         return (
           <section key={g.title}>
-            <div className="mb-3 flex items-baseline gap-2"><h2 className="text-[13px] font-semibold uppercase tracking-[0.06em] text-ink-3">{g.title}</h2><span className="tnum text-xs text-ink-4">{items.length}</span><span className="text-[12.5px] text-ink-4">· {g.hint}</span></div>
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1"><h2 className="font-display text-[22px] tracking-[-0.01em] text-ink">{g.title}</h2><span className="tnum text-[13px] text-ink-4">{items.length}</span><span className="text-[13px] text-ink-3">{g.hint}</span></div>
+            <ul className="divide-y divide-line overflow-hidden rounded-panel border border-line bg-surface shadow-card">
         {items.map((c) => {
           const meta = p.capabilities.find((x) => x.key === c.capability)!;
           const isNew = newly.some((n) => n.capability === c.capability);
           return (
-            <Card key={c.capability} className={`flex flex-col transition ${c.status === "ready" ? "border-emerald-200" : ""} ${isNew ? "ring-2 ring-emerald-300/60" : ""}`} data-capability={c.capability}>
-              <CardHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <CardTitle>{meta.label}</CardTitle>
-                    <CardDescription>{meta.description}</CardDescription>
-                  </div>
+            <li key={c.capability} className={`grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,0.9fr)] ${isNew ? "bg-lime-50/60" : ""}`} data-capability={c.capability}>
+              <div>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h3 className="text-[15.5px] font-medium text-ink">{meta.label}</h3>
                   <StatusPill status={c.status} className="shrink-0" />
                 </div>
-                {mightHelp.has(c.capability) && c.status !== "ready" && <div className="mt-1 w-fit rounded bg-brand-50 px-1.5 py-0.5 text-[11px] font-medium text-brand-700">Matches your goal</div>}
-              </CardHeader>
-              <CardContent className="flex flex-1 flex-col gap-3">
+                <p className="mt-1 text-[13.5px] text-ink-3">{meta.description}</p>
+                {mightHelp.has(c.capability) && c.status !== "ready" && <div className="mt-2 w-fit rounded-[5px] bg-cobalt-50 px-1.5 py-0.5 text-[11.5px] font-medium text-cobalt-700">Matches your goal</div>}
+              </div>
+              <div className="space-y-3">
                 {c.evidence.length > 0 && (
                   <div>
-                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Evidence from your records</div>
-                    <ul className="space-y-1">{c.evidence.map((e) => <li key={e} className="flex gap-2 text-sm text-slate-700"><Check className="mt-0.5 size-3.5 shrink-0 text-emerald-500" />{e}</li>)}</ul>
+                    <div className="mb-1.5 text-[12px] font-medium text-ink-3">Evidence from your records</div>
+                    <ul className="space-y-1">{c.evidence.map((e) => <li key={e} className="flex gap-2 text-[13.5px] text-ink-2"><Check className="mt-0.5 size-3.5 shrink-0 text-teal" />{e}</li>)}</ul>
                   </div>
                 )}
                 {c.missing.length > 0 && (
                   <div>
-                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Missing</div>
-                    <ul className="space-y-1">{c.missing.map((m) => <li key={m} className="flex gap-2 text-sm text-slate-700"><Circle className="mt-1 size-2.5 shrink-0 fill-rose-400 text-rose-400" />{m}</li>)}</ul>
+                    <div className="mb-1.5 text-[12px] font-medium text-ink-3">Missing</div>
+                    <ul className="space-y-1">{c.missing.map((m) => <li key={m} className="flex gap-2 text-[13.5px] text-ink-2"><Circle className="mt-1 size-2.5 shrink-0 fill-red/70 text-red/70" />{m}</li>)}</ul>
                   </div>
                 )}
-                {c.nextStep && <p className="rounded-lg bg-slate-50 p-2.5 text-sm text-slate-700"><span className="font-medium">Next step: </span>{c.nextStep}</p>}
-                <div className="mt-auto flex flex-wrap gap-2 pt-1">
+              </div>
+              <div className="flex flex-col gap-3">
+                {c.nextStep && <p className="text-[13.5px] leading-relaxed text-ink-2"><span className="text-ink-3">Next step · </span>{c.nextStep}</p>}
+                <div className="mt-auto flex flex-wrap gap-2">
                   {c.fixAction && c.status !== "ready" && <Button size="sm" onClick={() => setFix(c)}><Wrench /> Fix This Now</Button>}
                   {(c.status === "ready" || c.status === "partial") && (
                     <Button size="sm" variant="secondary" asChild>
@@ -139,11 +144,11 @@ export function ReadinessView(p: Omit<FixProps, "fix" | "onClose"> & {
                     </Button>
                   )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </li>
           );
         })}
-            </div>
+            </ul>
           </section>
         );
       })}
@@ -198,10 +203,9 @@ export function ReadinessView(p: Omit<FixProps, "fix" | "onClose"> & {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><Sparkles className="size-4 text-brand-500" /> Ask the AI Readiness Agent</CardTitle><CardDescription>It runs the same readiness checks with real tools and explains them in plain English.</CardDescription></CardHeader>
-        <CardContent><AgentChat agent="readiness" liveAi={p.liveAi} suggestions={["What can AI help me with?", "What's preventing me from using Financial Intelligence?", "Help me fix my spreadsheet.", "Give me a setup plan for this week."]} /></CardContent>
-      </Card>
+      <AgentPanel agent="readiness" title="Ask the AI Readiness Agent" description="Runs the same readiness checks with real tools and explains them in plain English.">
+        <AgentChat agent="readiness" liveAi={p.liveAi} suggestions={["What can AI help me with?", "What's preventing me from using Financial Intelligence?", "Help me fix my spreadsheet.", "Give me a setup plan for this week."]} />
+      </AgentPanel>
 
       {fix && <FixDialog fix={fix} onClose={() => setFix(null)} openMissing={p.openMissing} unknownStatuses={p.unknownStatuses} answers={p.answers} samples={p.samples} weeks={p.weeks} />}
     </div>

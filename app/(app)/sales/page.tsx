@@ -7,8 +7,9 @@ import { calculatePipeline, findStaleOpportunities, analyzeSalesTrends, analyzeA
 import { demoToday } from "@/lib/calc/dates";
 import { formatMoney } from "@/lib/calc/money";
 import { liveAiAvailable } from "@/lib/ai/openai";
-import { PageHeader, Stat, StatusPill, EmptyState } from "@/components/app/status";
+import { PageHeader, Stat, StatStrip, StatusPill, EmptyState } from "@/components/app/status";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { AgentPanel } from "@/components/app/agent-panel";
 import { Button } from "@/components/ui/button";
 import { AgentChat } from "@/components/app/agent-chat";
 import { AreaIntelligence } from "@/components/app/area-intelligence";
@@ -36,10 +37,11 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader title="Sales Intelligence" description="Your Sales Agent analyzes the sales records you've imported. Every number on this page is calculated directly from those records.">
-        <div className="flex flex-wrap gap-1.5">
-          <StatusPill status={st.pipeline.status} /> <StatusPill status={st.followup.status} />
-        </div>
+      <PageHeader eyebrow="Revenue workspace" title="Sales Intelligence" description="Your Sales Agent analyzes the sales records you've imported. Every number on this page is calculated directly from those records.">
+        <dl className="flex flex-wrap gap-x-5 gap-y-1 text-[12.5px]">
+          <div className="flex items-center gap-2"><dt className="text-ink-3">Pipeline</dt><dd><StatusPill status={st.pipeline.status} /></dd></div>
+          <div className="flex items-center gap-2"><dt className="text-ink-3">Follow-up detection</dt><dd><StatusPill status={st.followup.status} /></dd></div>
+        </dl>
       </PageHeader>
 
       <AreaIntelligence businessId={businessId} agent="sales" kind="sales_followup" />
@@ -52,16 +54,16 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
       )}
 
       {pipeline && (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatStrip className="mb-12">
           <Stat label="Open estimates" value={pipeline.open.count} sub={`${formatMoney(pipeline.open.value)} potential pipeline value`} tone="brand" />
           <Stat label="Need follow-up" value={stale ? stale.stale.length : "—"} sub={stale ? `${formatMoney(stale.totalValue)} potential, no contact in 7+ days` : "Needs last-contact dates"} tone={stale ? "amber" : "default"} />
           <Stat label="Won" value={pipeline.won.count} sub={formatMoney(pipeline.won.value)} tone="green" />
           <Stat label="Historical win rate" value={pipeline.winRateOfDecided != null ? `${pipeline.winRateOfDecided}%` : "—"} sub={`Of ${pipeline.won.count + pipeline.lost.count} decided estimates. Not a prediction.`} />
-        </div>
+        </StatStrip>
       )}
 
       {pipeline && (
-        <Card className="mt-6">
+        <Card>
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -74,7 +76,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
           <CardContent>
             {stale ? (
               <>
-                <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                <div className="mb-5 border-l-2 border-amber pl-4 text-[14.5px] leading-relaxed text-ink-2">
                   I found <b>{stale.stale.length} open estimates totaling {formatMoney(stale.totalValue)}</b> that may need follow-up. This is <b>potential pipeline value, not guaranteed revenue</b>.
                   {stale.excludedUnknownContact.length > 0 && <> {stale.excludedUnknownContact.length} estimate(s) with unknown contact dates were left out rather than guessed.</>}
                   {stale.excludedMissingContact.length > 0 && <> {stale.excludedMissingContact.length} estimate(s) have no contact date yet.</>}
@@ -92,19 +94,13 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
       )}
 
       {(pipeline || capacity) && (
-        <Card className="mt-6" id="agent">
-          <CardHeader>
-            <CardTitle>Sales Agent</CardTitle>
-            <CardDescription>The agent picks its own tools, inspects your records, runs the calculations above, and explains what to do. You can see every action it takes.</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <div className="mt-8"><AgentPanel id="agent" agent="sales" title="Sales Agent" description="Picks its own tools, inspects your records, runs the calculations above, and explains what to do.">
             <AgentChat agent="sales" liveAi={live} autoQuestion={sp.analyze === "1" ? "Analyze my sales opportunities. Which customers should I follow up with first?" : undefined} suggestions={["Analyze my sales opportunities", "Which customers should I follow up with?", "Where are my biggest sales opportunities?", "Draft follow-ups for my top 3 and add a task to review them"]} />
-          </CardContent>
-        </Card>
+        </AgentPanel></div>
       )}
 
       {capacity && (
-        <Card className="mt-6">
+        <Card className="mt-8">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><CalendarClock className="size-4 text-slate-400" /> Unused appointment capacity</CardTitle>
             <CardDescription>{capacity.limitation}</CardDescription>
@@ -120,7 +116,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
         </Card>
       )}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
         {trends && trends.points.length > 0 && (
           <Card>
             <CardHeader><CardTitle>Sales trends</CardTitle><CardDescription>Estimates quoted and won per month (by quote date).</CardDescription></CardHeader>
@@ -140,7 +136,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
       </div>
 
       {input.opps.length > 0 && (
-        <details className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+        <details className="mt-8 rounded-panel border border-line bg-surface p-5">
           <summary className="cursor-pointer text-sm font-medium">All {input.opps.length} sales records</summary>
           <div className="mt-3 max-h-96 overflow-auto">
             <table className="w-full text-sm">

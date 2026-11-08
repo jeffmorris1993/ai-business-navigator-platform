@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ownerPage } from "@/lib/page-auth";
 import { db } from "@/lib/db/client";
 import { loadActivity } from "@/lib/intelligence/activity";
-import { PageHeader, AGENT_META, EmptyState } from "@/components/app/status";
+import { PageHeader, AGENT_META, AgentGlyph, EmptyState } from "@/components/app/status";
 import { SectionHeader } from "@/components/ui/card";
 import { ActivityTimeline, timeAgo } from "@/components/app/activity-timeline";
 import { Brain, Cpu, CheckCircle2, XCircle, Loader2, Activity as ActivityIcon } from "lucide-react";
@@ -28,7 +28,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title="Agent Activity" description="What your agents actually did: which agent ran, what started it, which tools it used, what it found and prepared, and whether it succeeded. Concise summaries only; private model reasoning isn't shown." />
+      <PageHeader eyebrow="Evidence trail" title="Agent Activity" description="What your agents actually did: which agent ran, what started it, which tools it used, what it found and prepared, and whether it succeeded. Concise summaries only; private model reasoning isn't shown." />
       <div className="grid gap-8 lg:grid-cols-[18rem_minmax(0,1fr)]">
         <div className="space-y-6">
           <section>
@@ -67,7 +67,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
               </div>
               <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
                 {[["New findings", scan.findings_new], ["Updated", scan.findings_updated], ["Resolved", scan.findings_resolved], ["Drafts", scan.drafts_prepared], ["Tasks", scan.tasks_created]].map(([l, v]) => (
-                  <div key={l as string}><div className="text-[11px] text-ink-3">{l}</div><div className="tnum text-lg font-semibold">{v}</div></div>
+                  <div key={l as string}><div className="text-[12px] text-ink-3">{l}</div><div className="tnum mt-1 text-[26px] font-semibold leading-none tracking-[-0.03em]">{v}</div></div>
                 ))}
               </div>
               {scan.summary && <p className="mt-3 border-t border-line pt-3 text-[13.5px] leading-relaxed text-ink-2">{scan.summary}</p>}
@@ -81,9 +81,9 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
                 const rs = steps.filter((s) => s.run_id === r.id);
                 return (
                   <section key={r.id} className={cn("rounded-lg border border-line bg-surface shadow-card", r.parent_run_id && "ml-0 sm:ml-6")}>
-                    <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
-                      <span className={cn("size-2 rounded-[2px]", m.color)} />
-                      <span className="text-[13px] font-semibold">{m.label}</span>
+                    <div className="flex flex-wrap items-center gap-2.5 border-b border-line px-4 py-3">
+                      <AgentGlyph agent={r.agent} size={22} />
+                      <span className="text-[14px] font-medium">{m.label}</span>
                       {r.parent_run_id && <span className="text-xs text-ink-3">dispatched by the Intelligence Engine</span>}
                       <span className="ml-auto text-xs text-ink-3">{rs.filter((s) => s.kind === "model_call").length} AI decisions · {rs.filter((s) => s.kind === "tool_call").length} tool runs · {r.status}</span>
                     </div>
