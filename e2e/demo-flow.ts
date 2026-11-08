@@ -38,7 +38,7 @@ async function main() {
 
   // Minute 2: upload estimates without contact dates
   await page.getByRole("button", { name: "Upload my spreadsheet" }).click();
-  await page.getByRole("button", { name: "metro-roofing-estimates.xlsx" }).click();
+  await page.getByRole("button", { name: "Estimates (no contact dates)" }).click();
   await page.getByRole("button", { name: /Confirm and import 40 rows/ }).waitFor();
   const suggestedBy = (await page.getByText(/Suggested by (AI|matching rules)/).first().textContent()) ?? "";
   if (LIVE) assert.match(suggestedBy, /Suggested by AI/, "live AI should suggest mappings");
@@ -93,7 +93,7 @@ async function main() {
 
   // Minute 5: Financial Intelligence
   await page.goto(`${BASE}/finance`);
-  await page.getByRole("button", { name: "metro-roofing-invoices.csv" }).click();
+  await page.getByRole("button", { name: "QuickBooks invoices" }).click();
   await page.getByRole("button", { name: /Confirm and import 12 rows/ }).click();
   await page.getByText("Import complete").waitFor();
   await page.reload();
