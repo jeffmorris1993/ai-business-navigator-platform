@@ -63,7 +63,7 @@ export function DraftEditor({ draft, onApproved, context, approvedMessage }: { d
             ? <span className="inline-flex items-center gap-1.5 text-cobalt-700"><Sparkles className="size-3.5" /> Written by AI from your records</span>
             : <span className="inline-flex items-center gap-1.5 text-ink-3"><FileText className="size-3.5" /> Template (live AI unavailable)</span>}
           <span className="text-ink-4">·</span>
-          <span className={status === "approved" ? "text-teal-700" : "text-amber-700"}>{status === "approved" ? "Approved · not sent" : "Draft · needs your review"}</span>
+          <span className={status === "approved" ? "text-teal-700" : "text-amber-700"}>{status === "approved" ? "Ready to copy or export" : "Draft · needs your review"}</span>
         </div>
         <label className="block">
           <span className="mb-1 block text-[12px] font-medium text-ink-3">Subject</span>
